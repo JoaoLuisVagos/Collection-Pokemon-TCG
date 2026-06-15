@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+build/
+dist/
+coverage/
+out/
+release/
+debug/
+**/build/
+**/dist/
+**/coverage/
+**/out/
+**/release/
+**/debug/
+
+# Front-end generated files
+front-end/front-end/.cache/
+front-end/front-end/.parcel-cache/
+front-end/front-end/.next/
+front-end/front-end/.nuxt/
+front-end/front-end/.svelte-kit/
+front-end/front-end/vite.svg
+front-end/front-end/.vite/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Runtime files
+*.pid
+*.pid.lock
+*.seed
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test cache
+.nyc_output/
+.eslintcache
+.stylelintcache
+
+# Misc temp files
+tmp/
+temp/
+**/tmp/
+**/temp/
