@@ -1,8 +1,10 @@
 CREATE TABLE IF NOT EXISTS `users` (
     `id` INT NOT NULL AUTO_INCREMENT,
-    `name_user` VARCHAR(120) NULL,
-    `email_user` VARCHAR(120) NULL,
-    `password_user` VARCHAR(255) NULL,
+    `name_user` VARCHAR(120) NOT NULL,
+    `email_user` VARCHAR(120) NOT NULL,
+    `password_user` VARCHAR(255) NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_users_email` (`email_user`)
 );
