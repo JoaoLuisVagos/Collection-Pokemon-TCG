@@ -8,6 +8,7 @@ function CollectionPage() {
   const [pagination, setPagination] = useState({ page: 1, limit: 10, totalPages: 0, totalItems: 0 });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [totalValueBrl, setTotalValueBrl] = useState(0);
 
   const loadCollection = useCallback(async (page = 1) => {
     setLoading(true);
@@ -15,6 +16,7 @@ function CollectionPage() {
 
     try {
       const response = await request(`/collections?page=${page}&limit=10`, { token });
+      setTotalValueBrl(response.totalValueBrl || 0);
       setItems(response.data || []);
       setPagination(response.pagination || { page, limit: 10, totalPages: 0, totalItems: 0 });
     } catch (requestError) {
@@ -24,6 +26,20 @@ function CollectionPage() {
     }
   }, [token]);
 
+  const handleDeleteCard = useCallback(async (cardId) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      await request(`/collections/${cardId}`, { method: 'DELETE', token });
+      loadCollection(pagination.page);
+    } catch (deleteError) {
+      setError(deleteError.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, loadCollection, pagination.page]);
+
   useEffect(() => {
     loadCollection(1);
   }, [loadCollection]);
@@ -31,9 +47,9 @@ function CollectionPage() {
   return (
     <section className="page-stack">
       <div className="page-card">
-        <p className="eyebrow">Minha coleção</p>
-        <h2>Cartas salvas da API</h2>
+        <h2>Minha coleção</h2>
         <p className="muted">Total de itens: {pagination.totalItems}</p>
+        <p className="muted">Valor total (BRL): {totalValueBrl?.toFixed(2) || '0.00'}</p>
       </div>
 
       {error ? <div className="alert error">{error}</div> : null}
@@ -52,11 +68,22 @@ function CollectionPage() {
               <p>{item.card.setName}</p>
               <p>Quantidade: {item.amount}</p>
               <p>BRL: {item.card.priceBrl ?? 'N/A'}</p>
+              <button
+                className="button secondary"
+                type="button"
+                onClick={async () => {
+                  if (window.confirm(`Tem certeza que deseja remover ${item.card.name} da sua coleção?`)) {
+                    await handleDeleteCard(item.card.id);
+                  }
+                }}
+              >
+                Remover
+              </button>
             </div>
           </article>
         ))}
       </div>
-
+      
       <div className="pagination-bar">
         <button className="button secondary" type="button" onClick={() => loadCollection(Math.max(1, pagination.page - 1))} disabled={pagination.page <= 1}>
           Anterior

@@ -132,8 +132,10 @@ async function addCardToCollection(userId, { cardId, amount, acquisitionDate } =
 }
 
 async function listUserCollection(userId, params = {}) {
-  assertDatabaseReady();
 
+  
+  assertDatabaseReady();
+  
   const normalizedUserId = Number(userId);
 
   if (!Number.isInteger(normalizedUserId) || normalizedUserId <= 0) {
@@ -170,14 +172,26 @@ async function listUserCollection(userId, params = {}) {
     INNER JOIN cards ON cards.id = collection.card_id
     WHERE collection.user_id = ?
     ORDER BY collection.id DESC
-    LIMIT ? OFFSET ?`,
-    [normalizedUserId, limit, offset]
+    LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
+    [normalizedUserId]
   );
 
   const totalItems = Number(countRow?.total || 0);
 
+  const [[totalValueRow]] = await pool.execute(
+    `SELECT
+        COALESCE(SUM(collection.amount_card_collection * cards.price_brl_card), 0) AS total_value_brl
+    FROM collection
+    INNER JOIN cards ON cards.id = collection.card_id
+    WHERE collection.user_id = ?`,
+    [normalizedUserId]
+  );
+
+  const totalValueBrl = Number(totalValueRow.total_value_brl);
+
   return {
     data: rows.map(mapCollectionRow),
+    totalValueBrl,
     pagination: {
       page,
       limit,
@@ -187,7 +201,37 @@ async function listUserCollection(userId, params = {}) {
   };
 }
 
+async function deleteCardFromCollection(userId, cardId) {
+  assertDatabaseReady();
+
+  const normalizedUserId = Number(userId);
+  const normalizedCardId = Number(cardId);
+
+  if (!Number.isInteger(normalizedUserId) || normalizedUserId <= 0) {
+    const error = new Error('Usuario invalido.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!Number.isInteger(normalizedCardId) || normalizedCardId <= 0) {
+    const error = new Error('Informe o cardId da carta.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const pool = getPool();
+  const [result] = await pool.execute(
+    'DELETE FROM collection WHERE user_id = ? AND card_id = ?',
+    [normalizedUserId, normalizedCardId]
+  );
+
+  return {
+    deleted: result.affectedRows > 0,
+  };
+}
+
 module.exports = {
   addCardToCollection,
   listUserCollection,
+  deleteCardFromCollection,
 };

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { request } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import CardEstimatePanel from '../components/cards/CardEstimatePanel';
 import CardSearchForm from '../components/cards/CardSearchForm';
 import CardSuggestionsGrid from '../components/cards/CardSuggestionsGrid';
+import ToastContainer from '../components/ToastContainer';
 
 function CardsPage() {
   const { token } = useAuth();
@@ -15,6 +16,25 @@ function CardsPage() {
   const [loading, setLoading] = useState(false);
   const [estimating, setEstimating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const toastCounterRef = useRef(0);
+
+  function dismissToast(id) {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }
+
+  function pushToast(message, type = 'info', durationMs = 2600) {
+    const id = `${Date.now()}-${toastCounterRef.current++}`;
+    setToasts((prev) => [...prev, { id, message, type }]);
+
+    if (durationMs > 0) {
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((toast) => toast.id !== id));
+      }, durationMs);
+    }
+
+    return id;
+  }
 
   async function handleSearch(event) {
     event.preventDefault();
@@ -22,14 +42,22 @@ function CardsPage() {
     setError('');
     setResult(null);
     setSelectedCard(null);
+    const loadingToastId = pushToast('Aguarde, buscando cartas...', 'loading', 0);
 
     try {
       const response = await request(`/cards/search?query=${encodeURIComponent(query)}`);
       setSuggestions(response || []);
+      if ((response || []).length) {
+        pushToast(`Busca concluida: ${(response || []).length} carta(s) encontrada(s).`, 'success');
+      } else {
+        pushToast('Nenhuma carta encontrada para essa busca.', 'info');
+      }
     } catch (requestError) {
       setError(requestError.message);
       setSuggestions([]);
+      pushToast(requestError.message || 'Erro ao buscar cartas.', 'error');
     } finally {
+      dismissToast(loadingToastId);
       setLoading(false);
     }
   }
@@ -38,14 +66,18 @@ function CardsPage() {
     setSelectedCard(card);
     setEstimating(true);
     setError('');
+    const loadingToastId = pushToast('Carregando previa da carta...', 'loading', 0);
 
     try {
       const response = await request(`/cards/estimate?cardId=${encodeURIComponent(card.id)}&source=${encodeURIComponent(card.source || 'tcgdex')}`);
       setResult(response);
+      pushToast('Previa carregada com sucesso.', 'success');
     } catch (requestError) {
       setError(requestError.message);
       setResult(null);
+      pushToast(requestError.message || 'Erro ao carregar previa da carta.', 'error');
     } finally {
+      dismissToast(loadingToastId);
       setEstimating(false);
     }
   }
@@ -57,6 +89,7 @@ function CardsPage() {
 
     setSaving(true);
     setError('');
+    const loadingToastId = pushToast('Salvando carta, aguarde...', 'loading', 0);
 
     try {
       const response = await request('/cards/search-and-save', {
@@ -76,15 +109,19 @@ function CardsPage() {
       }
 
       setResult(response);
+      pushToast('Carta salva com sucesso.', 'success');
     } catch (requestError) {
       setError(requestError.message);
+      pushToast(requestError.message || 'Erro ao salvar carta.', 'error');
     } finally {
+      dismissToast(loadingToastId);
       setSaving(false);
     }
   }
 
   return (
     <section className="page-stack">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className="page-card">
         <p className="eyebrow">Busca de cartas</p>
         <h2>Pesquisar, escolher e salvar</h2>

@@ -5,14 +5,11 @@ const { getUsdToBrlRate } = require('../prices/prices.service');
 
 const TCGDEX_BASE_URL = 'https://api.tcgdex.net/v2/pt-br';
 const POKEMON_TCG_BASE_URL = 'https://api.pokemontcg.io/v2';
-const TCGDEX_CACHE_TTL_MS = 15 * 60 * 1000;
 const CARD_SEARCH_ALIASES = {
   tarsila: ['lacey'],
   lacey: ['tarsila'],
 };
-
-let tcgdexCardsCache = null;
-let tcgdexCardsCacheFetchedAt = 0;
+const REQUEST_TIMEOUT_MS = 8000;
 
 function normalizeText(value) {
   return String(value || '').trim().toLowerCase();
@@ -36,31 +33,98 @@ function extractQueryNumber(value) {
   return normalizeCardNumber(match[0].split('/')[0]);
 }
 
+function extractQueryName(value) {
+  const normalized = normalizeText(value);
+
+  if (!normalized) {
+    return '';
+  }
+
+  return normalized
+    .replace(/\d{1,3}\s*\/\s*\d{1,3}/g, ' ')
+    .replace(/\d+/g, ' ')
+    .replace(/[()\[\]{}\-_/.,]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function escapeMarketQueryValue(value) {
+  return String(value || '').replace(/"/g, '\\"');
+}
+
 function getSearchVariants(query) {
   const normalizedQuery = normalizeText(query);
-  const variants = new Set([normalizedQuery]);
+  const queryName = extractQueryName(query);
+  const variants = new Set();
 
-  for (const alias of CARD_SEARCH_ALIASES[normalizedQuery] || []) {
-    variants.add(normalizeText(alias));
+  if (queryName) {
+    variants.add(queryName);
+  }
+
+  if (normalizedQuery && normalizedQuery === queryName) {
+    variants.add(normalizedQuery);
+  }
+
+  if (!variants.size && normalizedQuery) {
+    variants.add(normalizedQuery);
+  }
+
+  for (const variant of Array.from(variants)) {
+    for (const alias of CARD_SEARCH_ALIASES[variant] || []) {
+      variants.add(normalizeText(alias));
+    }
   }
 
   return Array.from(variants).filter(Boolean);
 }
 
-async function getAllTcgdexCards() {
-  const cacheIsFresh = tcgdexCardsCache && (Date.now() - tcgdexCardsCacheFetchedAt) < TCGDEX_CACHE_TTL_MS;
+function getCardRelevanceScore(card, query) {
+  const queryNumber = extractQueryNumber(query);
+  const queryName = extractQueryName(query);
+  const variants = getSearchVariants(query);
+  const cardName = normalizeText(card.name);
+  const cardSetName = normalizeText(card.set?.name);
+  const cardNumber = normalizeCardNumber(card.localId || card.number);
+  const hasNameAndNumber = Boolean(queryName && queryNumber);
 
-  if (cacheIsFresh) {
-    return tcgdexCardsCache;
+  let score = 0;
+
+  if (queryName) {
+    if (cardName === queryName) {
+      score += 150;
+    } else if (cardName.includes(queryName)) {
+      score += 110;
+    }
   }
 
-  const response = await axios.get(`${TCGDEX_BASE_URL}/cards`);
-  const cards = Array.isArray(response.data) ? response.data : response.data?.cards || [];
+  if (queryNumber && cardNumber === queryNumber) {
+    score += 100;
+  }
 
-  tcgdexCardsCache = cards;
-  tcgdexCardsCacheFetchedAt = Date.now();
+  if (hasNameAndNumber && cardName.includes(queryName) && cardNumber === queryNumber) {
+    score += 240;
+  }
 
-  return cards;
+  for (const variant of variants) {
+    const normalizedVariant = normalizeText(variant);
+    if (!normalizedVariant) {
+      continue;
+    }
+
+    if (cardName.includes(normalizedVariant)) {
+      score += 35;
+    }
+
+    if (cardSetName.includes(normalizedVariant)) {
+      score += 10;
+    }
+  }
+
+  if (card.source === 'tcgdex') {
+    score += 5;
+  }
+
+  return score;
 }
 
 function mapSuggestionCard(card) {
@@ -105,6 +169,33 @@ function calculateEstimatedPrice(priceUsd, usdToBrlRate, discountPercent) {
 
   return Number(discounted.toFixed(2));
 }
+
+async function fetchTcgdexCards(params) {
+  try {
+    const response = await axios.get(`${TCGDEX_BASE_URL}/cards`, {
+      params,
+      timeout: REQUEST_TIMEOUT_MS,
+    });
+
+    return Array.isArray(response.data) ? response.data : response.data?.cards || [];
+  } catch (error) {
+    return [];
+  }
+}
+
+async function fetchMarketCards(params) {
+  try {
+    const response = await axios.get(`${POKEMON_TCG_BASE_URL}/cards`, {
+      params,
+      timeout: REQUEST_TIMEOUT_MS,
+    });
+
+    return response.data?.data || [];
+  } catch (error) {
+    return [];
+  }
+}
+
 function pickPortugueseCard(cards, query) {
   const normalizedName = normalizeText(query);
   const queryNumber = extractQueryNumber(query);
@@ -126,13 +217,47 @@ function pickPortugueseCard(cards, query) {
 
 async function searchCardInTcgdex(query) {
   const queryNumber = extractQueryNumber(query);
+  const queryName = extractQueryName(query);
   const variants = getSearchVariants(query);
-  const cards = await getAllTcgdexCards();
+  const cardsById = new Map();
+
+  const requests = variants.map((variant) => fetchTcgdexCards({ name: variant }));
+
+  if (queryNumber) {
+    requests.push(fetchTcgdexCards({ localId: formatCardNumber(queryNumber) }));
+  }
+
+  const responses = await Promise.all(requests);
+
+  for (const cards of responses) {
+    for (const card of cards) {
+      if (card?.id && !cardsById.has(card.id)) {
+        cardsById.set(card.id, card);
+      }
+    }
+  }
+
+  const cards = Array.from(cardsById.values());
+
+  if (!cards.length) {
+    return [];
+  }
 
   const matches = cards.filter((card) => {
     const cardName = normalizeText(card.name);
     const cardSetName = normalizeText(card.set?.name);
     const cardNumber = normalizeCardNumber(card.localId);
+    const hasNameAndNumber = Boolean(queryName && queryNumber);
+    const nameMatch = queryName
+      ? cardName === queryName || cardName.includes(queryName)
+      : variants.some((variant) => {
+          const normalizedVariant = normalizeText(variant);
+          return normalizedVariant && (cardName === normalizedVariant || cardName.includes(normalizedVariant));
+        });
+
+    if (hasNameAndNumber) {
+      return nameMatch && cardNumber === queryNumber;
+    }
 
     if (queryNumber && cardNumber === queryNumber) {
       return true;
@@ -173,38 +298,36 @@ async function searchCardInMarket(query) {
   const cardsById = new Map();
   const variants = getSearchVariants(query);
   const queryNumber = extractQueryNumber(query);
+  const queryName = extractQueryName(query);
+
+  if (queryName && queryNumber) {
+    const combinedQuery = `name:"${escapeMarketQueryValue(queryName)}" number:${queryNumber}`;
+    const resultCards = await fetchMarketCards({ q: combinedQuery });
+
+    for (const card of resultCards) {
+      if (card?.id && !cardsById.has(card.id)) {
+        cardsById.set(card.id, card);
+      }
+    }
+  }
 
   for (const variant of variants) {
-    try {
-      const response = await axios.get(`${POKEMON_TCG_BASE_URL}/cards`, {
-        params: { q: `name:${variant}` },
-      });
-      const resultCards = response.data?.data || [];
+    const resultCards = await fetchMarketCards({ q: `name:"${escapeMarketQueryValue(variant)}"` });
 
-      for (const card of resultCards) {
-        if (card?.id && !cardsById.has(card.id)) {
-          cardsById.set(card.id, card);
-        }
+    for (const card of resultCards) {
+      if (card?.id && !cardsById.has(card.id)) {
+        cardsById.set(card.id, card);
       }
-    } catch (error) {
-      // Ignora a variante que falhou e segue para a próxima.
     }
   }
 
   if (queryNumber) {
-    try {
-      const response = await axios.get(`${POKEMON_TCG_BASE_URL}/cards`, {
-        params: { q: `number:${queryNumber}` },
-      });
-      const resultCards = response.data?.data || [];
+    const resultCards = await fetchMarketCards({ q: `number:${queryNumber}` });
 
-      for (const card of resultCards) {
-        if (card?.id && !cardsById.has(card.id)) {
-          cardsById.set(card.id, card);
-        }
+    for (const card of resultCards) {
+      if (card?.id && !cardsById.has(card.id)) {
+        cardsById.set(card.id, card);
       }
-    } catch (error) {
-      // Ignora a busca por número quando a API falhar.
     }
   }
 
@@ -212,11 +335,31 @@ async function searchCardInMarket(query) {
     cards.push(card);
   }
 
+  if (!cards.length) {
+    return cards;
+  }
+
+  const hasNameAndNumber = Boolean(queryName && queryNumber);
+
+  if (hasNameAndNumber) {
+    const strictMatches = cards.filter((card) => {
+      const cardName = normalizeText(card.name);
+      const cardNumber = normalizeCardNumber(card.number || card.localId);
+      return cardName.includes(queryName) && cardNumber === queryNumber;
+    });
+
+    if (strictMatches.length) {
+      return strictMatches;
+    }
+  }
+
   return cards;
 }
 
 async function getCardDetailsInTcgdex(cardId) {
-  const response = await axios.get(`${TCGDEX_BASE_URL}/cards/${encodeURIComponent(cardId)}`);
+  const response = await axios.get(`${TCGDEX_BASE_URL}/cards/${encodeURIComponent(cardId)}`, {
+    timeout: REQUEST_TIMEOUT_MS,
+  });
   return response.data;
 }
 
@@ -226,6 +369,7 @@ async function getMarketCard(card) {
 
   const exactResponse = await axios.get(`${POKEMON_TCG_BASE_URL}/cards`, {
     params: { q: exactQuery },
+    timeout: REQUEST_TIMEOUT_MS,
   });
 
   const exactMatch = exactResponse.data?.data?.find((item) => normalizeText(item.name) === normalizeText(card.name));
@@ -235,6 +379,7 @@ async function getMarketCard(card) {
 
   const fallbackResponse = await axios.get(`${POKEMON_TCG_BASE_URL}/cards`, {
     params: { q: fallbackQuery },
+    timeout: REQUEST_TIMEOUT_MS,
   });
 
   return fallbackResponse.data?.data?.find((item) => normalizeText(item.name) === normalizeText(card.name)) || null;
@@ -254,13 +399,6 @@ function getMarketPriceUsd(marketCard) {
     marketCard?.cardmarket?.prices?.averageSellPrice ||
     null
   );
-}
-
-function calculateEstimatedPrice(priceUsd, usdToBrlRate, discountPercent) {
-  const convertedToBrl = priceUsd * usdToBrlRate;
-  const discounted = convertedToBrl * (1 - discountPercent / 100);
-
-  return Number(discounted.toFixed(2));
 }
 
 function getCardImageUrl(cardDetails, marketCard) {
@@ -310,12 +448,25 @@ async function searchCardSuggestions(query) {
     }
   }
 
+  orderedCards.sort((a, b) => {
+    const scoreA = getCardRelevanceScore(a, query);
+    const scoreB = getCardRelevanceScore(b, query);
+
+    if (scoreA !== scoreB) {
+      return scoreB - scoreA;
+    }
+
+    return normalizeText(a.name).localeCompare(normalizeText(b.name));
+  });
+
   return orderedCards.slice(0, 12);
 }
 
 async function getMarketCardById(cardId) {
-  const response = await axios.get(`${POKEMON_TCG_BASE_URL}/cards/${encodeURIComponent(cardId)}`);
-  return response.data;
+  const response = await axios.get(`${POKEMON_TCG_BASE_URL}/cards/${encodeURIComponent(cardId)}`, {
+    timeout: REQUEST_TIMEOUT_MS,
+  });
+  return response.data?.data || null;
 }
 
 function normalizeMarketCard(card) {
@@ -420,6 +571,8 @@ async function saveCardToDatabase(card, pricing = {}) {
     throw error;
   }
 
+  const effectiveBrlPrice = pricing.estimatedPriceBrl ?? pricing.priceBrl ?? null;
+
   const pool = getPool();
   const connection = await pool.getConnection();
 
@@ -451,9 +604,9 @@ async function saveCardToDatabase(card, pricing = {}) {
         card.set?.name || null,
         card.rarity || null,
         pricing.imageUrl || card.image || null,
-        pricing.estimatedPriceBrl ?? null,
+        effectiveBrlPrice,
         pricing.sourceUsdPrice ?? null,
-        pricing.priceBrl ?? null,
+        effectiveBrlPrice,
         pricing.discountPercent ?? null,
       ]
     );
