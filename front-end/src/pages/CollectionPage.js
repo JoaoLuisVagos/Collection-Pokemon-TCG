@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { request } from '../config/api';
 import { useAuth } from '../context/AuthContext';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTrash } from '@fortawesome/free-solid-svg-icons';
 
 function CollectionPage() {
   const { token } = useAuth();
   const [items, setItems] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, totalPages: 0, totalItems: 0 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 12, totalPages: 0, totalItems: 0 });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [totalValueBrl, setTotalValueBrl] = useState(0);
@@ -15,10 +17,10 @@ function CollectionPage() {
     setError('');
 
     try {
-      const response = await request(`/collections?page=${page}&limit=10`, { token });
+      const response = await request(`/collections?page=${page}&limit=12`, { token });
       setTotalValueBrl(response.totalValueBrl || 0);
       setItems(response.data || []);
-      setPagination(response.pagination || { page, limit: 10, totalPages: 0, totalItems: 0 });
+      setPagination(response.pagination || { page, limit: 12, totalPages: 0, totalItems: 0 });
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -77,13 +79,13 @@ function CollectionPage() {
                   }
                 }}
               >
-                Remover
+                <FontAwesomeIcon icon={faTrash} />
               </button>
             </div>
           </article>
         ))}
       </div>
-      
+
       <div className="pagination-bar">
         <button className="button secondary" type="button" onClick={() => loadCollection(Math.max(1, pagination.page - 1))} disabled={pagination.page <= 1}>
           Anterior

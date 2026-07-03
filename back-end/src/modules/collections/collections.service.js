@@ -171,7 +171,16 @@ async function listUserCollection(userId, params = {}) {
     FROM collection
     INNER JOIN cards ON cards.id = collection.card_id
     WHERE collection.user_id = ?
-    ORDER BY collection.id DESC
+    ORDER BY CASE cards.rarity_card
+        WHEN 'Common' THEN 1
+        WHEN 'Uncommon' THEN 2
+        WHEN 'Rare' THEN 3
+        WHEN 'Double Rare' THEN 4
+        WHEN 'Illustration Rare' THEN 5
+        WHEN 'Special Illustration Rare' THEN 6
+        WHEN 'Hyper Rare' THEN 7
+        ELSE 999
+    END DESC, cards.price_brl_card DESC, cards.name_card ASC
     LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
     [normalizedUserId]
   );

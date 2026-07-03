@@ -14,11 +14,7 @@ function Layout() {
     <div className="shell">
       <aside className="sidebar">
         <div>
-          <p className="eyebrow">Collection-Pokemon-TCG</p>
-          <h1>Controle suas cartas com foco na coleção.</h1>
-          <p className="sidebar-text">
-            Busque cartas, salve no banco, veja sua coleção paginada e mantenha seu perfil atualizado.
-          </p>
+          <h1>Coleção TCG Pokemon</h1>
         </div>
 
         <nav className="nav-list">
