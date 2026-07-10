@@ -357,10 +357,22 @@ async function searchCardInMarket(query) {
 }
 
 async function getCardDetailsInTcgdex(cardId) {
-  const response = await axios.get(`${TCGDEX_BASE_URL}/cards/${encodeURIComponent(cardId)}`, {
-    timeout: REQUEST_TIMEOUT_MS,
-  });
-  return response.data;
+  try {
+    const response = await axios.get(`${TCGDEX_BASE_URL}/cards/${encodeURIComponent(cardId)}`, {
+      timeout: REQUEST_TIMEOUT_MS,
+    });
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 404) {
+      console.warn(`Carta ${cardId} nao encontrada em pt-br, tentando en...`);
+      const fallbackUrl = TCGDEX_BASE_URL.replace('/pt-br', '/en');
+      const response = await axios.get(`${fallbackUrl}/cards/${encodeURIComponent(cardId)}`, {
+        timeout: REQUEST_TIMEOUT_MS,
+      });
+      return response.data;
+    }
+    throw error;
+  }
 }
 
 async function getMarketCard(card) {
@@ -494,7 +506,7 @@ async function buildCardEstimateById(cardId, options = {}) {
   const discountPercent = Number.isFinite(Number(options.discountPercent))
     ? Number(options.discountPercent)
     : env.languageDiscountPercent;
-  const source = options.source || 'tcgdex';
+  let source = options.source || 'tcgdex';
 
   let cardDetails;
   let marketCard;
@@ -503,12 +515,22 @@ async function buildCardEstimateById(cardId, options = {}) {
     marketCard = await getMarketCardById(cardId);
     cardDetails = normalizeMarketCard(marketCard);
   } else {
-    cardDetails = await getCardDetailsInTcgdex(cardId);
-    marketCard = await getMarketCard(cardDetails);
+    try {
+      cardDetails = await getCardDetailsInTcgdex(cardId);
+      marketCard = await getMarketCard(cardDetails);
+    } catch (error) {
+      if (error.response?.status === 404) {
+        console.warn(`Nao encontrado na TCGdex, tentando fonte de mercado: ${cardId}`);
+        source = 'market';
+        marketCard = await getMarketCardById(cardId);
+        cardDetails = normalizeMarketCard(marketCard);
+      } else {
+        throw error;
+      }
+    }
   }
 
   const priceUsd = getMarketPriceUsd(marketCard);
-
   const imageUrl = getCardImageUrl(cardDetails, marketCard);
   const imageMeta = getCardImageMeta(cardDetails, marketCard, imageUrl);
 
@@ -622,9 +644,48 @@ async function saveCardToDatabase(card, pricing = {}) {
   }
 }
 
+async function updateCardPrices() {
+  const pool = getPool();
+  const connection = await pool.getConnection();
+  const notFound = [];
+  const updated = [];
+
+  try {
+    const [cards] = await connection.execute('SELECT * FROM cards');
+
+    for (const card of cards) {
+      try {
+        let estimate;
+        try {
+          estimate = await buildCardEstimateById(card.tcgdex_id);
+        } catch (error) {
+          if (error.response?.status === 404 || error.statusCode === 404) {
+            console.warn(`Nao encontrado na TCGdex, tentando fonte de mercado: ${card.tcgdex_id}`);
+            estimate = await buildCardEstimateById(card.tcgdex_id, { source: 'market' });
+          } else {
+            throw error;
+          }
+        }
+
+        await saveCardToDatabase(estimate.card, estimate.pricing);
+        updated.push(card.tcgdex_id);
+        console.log(`✔ Atualizado: ${card.name_card} (${card.tcgdex_id})`);
+      } catch (error) {
+        notFound.push(card.tcgdex_id);
+        console.error(`✖ Nao encontrado em nenhuma fonte: ${card.name_card} (${card.tcgdex_id})`);
+      }
+    }
+  } finally {
+    connection.release();
+    console.log(`\nResumo: ${updated.length} atualizadas, ${notFound.length} nao encontradas`);
+    if (notFound.length) console.log('IDs nao encontrados:', notFound.join(', '));
+  }
+}
+
 module.exports = {
   buildCardEstimateById,
   buildCardEstimate,
   searchCardSuggestions,
   saveCardToDatabase,
+  updateCardPrices,
 };

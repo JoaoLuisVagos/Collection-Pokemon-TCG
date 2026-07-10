@@ -8,6 +8,12 @@
   color: #ffffff;
 }
 
+.logo {
+  width: 250px;
+  display: block;
+  align-self: center;
+}
+
 .sidebar {
   padding: 32px;
   display: flex;

@@ -172,10 +172,10 @@ async function listUserCollection(userId, params = {}) {
     INNER JOIN cards ON cards.id = collection.card_id
     WHERE collection.user_id = ?
     ORDER BY CASE cards.rarity_card
-        WHEN 'Common' THEN 1
-        WHEN 'Uncommon' THEN 2
-        WHEN 'Rare' THEN 3
-        WHEN 'Double Rare' THEN 4
+        WHEN 'Promo' THEN 1
+        WHEN 'Double Rare' THEN 2
+        WHEN 'Shiny Rare' THEN 3
+        WHEN 'Ultra Rare' THEN 4
         WHEN 'Illustration Rare' THEN 5
         WHEN 'Special Illustration Rare' THEN 6
         WHEN 'Hyper Rare' THEN 7

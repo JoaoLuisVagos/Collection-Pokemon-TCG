@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { faSolid } from '@fortawesome/free-solid-svg-icons';
 
 function Layout() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -14,7 +15,8 @@ function Layout() {
     <div className="shell">
       <aside className="sidebar">
         <div>
-          <h1>Coleção TCG Pokemon</h1>
+          <img src="/logo.png" alt="Logo" className="logo" />
+          <h1 style={{ textAlign: 'center' }}>Coleção TCG</h1>
         </div>
 
         <nav className="nav-list">
@@ -29,10 +31,11 @@ function Layout() {
             <>
               <div>
                 <span className="muted">Logado como </span>
-                <strong>{user?.name || user?.email}</strong>
+                <br />
+                <strong>{user?.email}</strong>
               </div>
               <button className="button secondary" type="button" onClick={handleLogout}>
-                Sair
+                <faSolid icon="arrow-right-from-bracket" /> Sair
               </button>
             </>
           ) : (
