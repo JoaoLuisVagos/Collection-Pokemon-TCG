@@ -52,7 +52,7 @@ function mapCollectionRow(row) {
       rarity: row.rarity_card,
       image: row.image_card,
       priceUsd: row.price_usd_card,
-      priceBrl: row.price_brl_card,
+      priceBrl: row.price_brl_card ?? row.amount__price_card,
       estimatedPriceBrl: row.amount__price_card,
       discountPercent: row.discount_percent_card,
       createdAt: row.card_created_at,

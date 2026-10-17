@@ -3,6 +3,7 @@ import { request } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash } from '@fortawesome/free-solid-svg-icons';
+import CardArt from '../components/cards/CardArt';
 
 function CollectionPage() {
   const { token } = useAuth();
@@ -64,12 +65,16 @@ function CollectionPage() {
       <div className="collection-grid">
         {items.map((item) => (
           <article className="card-tile" key={item.id}>
-            <img src={item.card.image} alt={item.card.name} />
+            <CardArt src={item.card.image} alt={item.card.name} className="card-image" />
             <div>
               <h3>{item.card.name}</h3>
               <p>{item.card.setName}</p>
               <p>Quantidade: {item.amount}</p>
-              <p>BRL: {item.card.priceBrl ?? 'N/A'}</p>
+              <p>
+                BRL: {Number.isFinite(Number(item.card.priceBrl))
+                  ? Number(item.card.priceBrl).toFixed(2)
+                  : 'N/A'}
+              </p>
               <button
                 className="button secondary"
                 type="button"

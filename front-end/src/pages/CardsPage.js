@@ -69,7 +69,15 @@ function CardsPage() {
     const loadingToastId = pushToast('Carregando previa da carta...', 'loading', 0);
 
     try {
-      const response = await request(`/cards/estimate?cardId=${encodeURIComponent(card.id)}&source=${encodeURIComponent(card.source || 'tcgdex')}`);
+      const params = new URLSearchParams({
+        cardId: card.id,
+        source: card.source || 'tcgdex',
+        name: card.name || '',
+        image: card.image || '',
+        setName: card.set?.name || '',
+        number: card.localId || card.number || '',
+      });
+      const response = await request(`/cards/estimate?${params.toString()}`);
       setResult(response);
       pushToast('Previa carregada com sucesso.', 'success');
     } catch (requestError) {
@@ -94,7 +102,14 @@ function CardsPage() {
     try {
       const response = await request('/cards/search-and-save', {
         method: 'POST',
-        body: { cardId: selectedCard.id, source: selectedCard.source || 'tcgdex' },
+        body: {
+          cardId: selectedCard.id,
+          source: selectedCard.source || 'tcgdex',
+          name: selectedCard.name,
+          image: selectedCard.image,
+          setName: selectedCard.set?.name,
+          number: selectedCard.localId || selectedCard.number,
+        },
       });
 
       if (token) {
