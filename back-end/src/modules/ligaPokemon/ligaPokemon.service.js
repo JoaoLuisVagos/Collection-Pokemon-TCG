@@ -104,6 +104,8 @@ async function findLigaReferenceBySearch(name, number, printedTotal = null) {
   const normalizedTotal = printedTotal ? String(printedTotal).replace(/^0+/, '') : null;
   const normalizedName = normalizeSearchText(name);
 
+  const candidates = [];
+
   for (const link of links) {
     const candidateUrl = new URL(decodeHtml(link[1]), url.origin);
     const candidateCard = candidateUrl.searchParams.get('card') || '';
@@ -119,15 +121,19 @@ async function findLigaReferenceBySearch(name, number, printedTotal = null) {
       !normalizedName || normalizeSearchText(candidateName) === normalizedName;
     const matchesTotal = !normalizedTotal || candidateTotal === normalizedTotal;
 
-    if (matchesNumber && matchesName && matchesTotal) {
-      return {
+    if (matchesNumber) {
+      candidates.push({
         reference: candidateCard,
         editionCode: candidateUrl.searchParams.get('ed') || null,
-      };
+        matchesName,
+        matchesTotal,
+      });
     }
   }
 
-  return null;
+  return candidates.find((candidate) => candidate.matchesName && candidate.matchesTotal)
+    || candidates.find((candidate) => candidate.matchesTotal)
+    || (candidates.length === 1 ? candidates[0] : null);
 }
 
 async function fetchCardPage(url) {

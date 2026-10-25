@@ -3,7 +3,10 @@ const { env, isDatabaseConfigured } = require('../../config/env');
 const { getPool } = require('../../config/db');
 const { getUsdToBrlRate } = require('../prices/prices.service');
 const { getCachedCardPrices } = require('../ligaPokemon/cardPrices.service');
-const { getLigaCardReference } = require('../ligaPokemon/ligaPokemon.service');
+const {
+  getLigaCardReference,
+  findLigaReferenceBySearch,
+} = require('../ligaPokemon/ligaPokemon.service');
 
 const TCGDEX_BASE_URL = 'https://api.tcgdex.net/v2/pt-br';
 const POKEMON_TCG_BASE_URL = 'https://api.pokemontcg.io/v2';
@@ -1180,6 +1183,56 @@ async function updateCardPricesFromLiga() {
           [resolvedCode, card.tcgdex_id]
         );
       } catch (error) {
+        if (
+          error.message.includes('cards_editions não encontrado')
+          && card.liga_card_number
+        ) {
+          try {
+            const refreshed = await findLigaReferenceBySearch(
+              card.liga_card_name || card.name_card,
+              card.liga_card_number,
+              card.liga_printed_total
+            );
+
+            if (refreshed) {
+              reference = refreshed.reference;
+              editionCode = refreshed.editionCode || editionCode;
+              await connection.execute(
+                `UPDATE cards
+                 SET liga_card_reference = ?,
+                     edition_code = COALESCE(?, edition_code)
+                 WHERE tcgdex_id = ?`,
+                [reference, editionCode, card.tcgdex_id]
+              );
+
+              const retryResult = await getCachedCardPrices(
+                card.name_card,
+                editionCode,
+                reference
+              );
+              const retryCode = editionCode
+                ? editionCode.toUpperCase()
+                : Object.keys(retryResult.prices)[0];
+              const retryPrice = retryCode ? retryResult.prices[retryCode] : null;
+
+              if (retryPrice) {
+                await connection.execute(
+                  `UPDATE cards
+                   SET amount__price_card = ?,
+                       price_brl_card = ?
+                   WHERE tcgdex_id = ?`,
+                  [retryPrice.avg, retryPrice.avg, card.tcgdex_id]
+                );
+                updated.push(card.tcgdex_id);
+                console.log(`Atualizado pela Liga: ${card.name_card} (${retryCode})`);
+                continue;
+              }
+            }
+          } catch (retryError) {
+            error = retryError;
+          }
+        }
+
         notFound.push(card.tcgdex_id);
         console.error(
           `Falha ao atualizar pela Liga: ${card.name_card}: ${error.message}`
