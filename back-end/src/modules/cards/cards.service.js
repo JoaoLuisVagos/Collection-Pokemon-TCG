@@ -790,7 +790,14 @@ async function buildCardEstimateById(cardId, options = {}) {
   }
 
   try {
-    const ligaReference = await getLigaCardReference(cardDetails.id || cardId, cardDetails.name);
+    const ligaReference = await getLigaCardReference(
+      cardDetails.id || cardId,
+      cardDetails.name || options.fallbackCard?.name,
+      {
+        ...options.fallbackCard,
+        number: options.fallbackCard?.number || cardDetails.localId,
+      }
+    );
     const ligaResult = await getCachedCardPrices(
       cardDetails.name,
       ligaReference.editionCode,
@@ -874,7 +881,10 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
 
   if (!ligaPricing && card.id) {
     try {
-      const reference = await getLigaCardReference(card.id, card.name);
+      const reference = await getLigaCardReference(card.id, card.name, {
+        name: card.name,
+        number: card.localId || card.number,
+      });
       const ligaResult = await getCachedCardPrices(
         card.name,
         reference.editionCode,
@@ -917,7 +927,12 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
 
   if (!editionCode && card.id) {
     try {
-      editionCode = (await getLigaCardReference(card.id, card.name)).editionCode;
+      editionCode = (
+        await getLigaCardReference(card.id, card.name, {
+          name: card.name,
+          number: card.localId || card.number,
+        })
+      ).editionCode;
     } catch (error) {
       console.warn(`Codigo da edicao da Liga indisponivel para ${card.name}: ${error.message}`);
     }

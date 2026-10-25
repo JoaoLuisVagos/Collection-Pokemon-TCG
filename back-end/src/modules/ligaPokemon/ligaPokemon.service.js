@@ -224,7 +224,7 @@ async function getCardPricesForNames(names, edition = null) {
   return results;
 }
 
-async function getLigaCardReference(cardId, fallbackName = null) {
+async function getLigaCardReference(cardId, fallbackName = null, fallbackCard = null) {
   let card;
   const sources = [
     `https://api.pokemontcg.io/v2/cards/${encodeURIComponent(cardId)}`,
@@ -243,11 +243,13 @@ async function getLigaCardReference(cardId, fallbackName = null) {
     }
   }
 
-  const name = card?.name || fallbackName;
-  const number = card?.number
+  const name = card?.name || fallbackName || fallbackCard?.name;
+  const number = fallbackCard?.number
+    || card?.number
     || card?.localId
     || String(cardId).match(/-(\d+)$/)?.[1];
   const printedTotal =
+    fallbackCard?.printedTotal ||
     card?.set?.printedTotal ||
     card?.set?.cardCount?.official ||
     card?.set?.cardCount?.total ||
