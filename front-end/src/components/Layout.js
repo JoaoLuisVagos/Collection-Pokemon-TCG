@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { faSolid } from '@fortawesome/free-solid-svg-icons';
+import { faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 function Layout() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -35,7 +36,7 @@ function Layout() {
                 <strong>{user?.email}</strong>
               </div>
               <button className="button secondary" type="button" onClick={handleLogout}>
-                <faSolid icon="arrow-right-from-bracket" /> Sair
+                <FontAwesomeIcon icon={faRightFromBracket} /> Sair
               </button>
             </>
           ) : (
