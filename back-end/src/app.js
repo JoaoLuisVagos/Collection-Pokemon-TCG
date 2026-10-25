@@ -5,6 +5,7 @@ const { isDatabaseConfigured } = require('./config/env');
 const cardsRoutes = require('./routes/cards.routes');
 const collectionsRoutes = require('./routes/collections.routes');
 const usersRoutes = require('./routes/users.routes');
+const pricesRoutes = require('./routes/prices.routes');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.get('/health', async (req, res) => {
 app.use('/cards', cardsRoutes);
 app.use('/collections', collectionsRoutes);
 app.use('/users', usersRoutes);
+app.use('/prices', pricesRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Rota nao encontrada.' });

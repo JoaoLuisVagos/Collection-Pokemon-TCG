@@ -112,9 +112,12 @@ MYSQL_USER=
 MYSQL_PASSWORD=
 MYSQL_DATABASE=
 MYSQL_SSL=false
+LIGA_POKEMON_URL_TEMPLATE=https://www.ligapokemon.com.br/?view=cards/card&card={card_name}
 ```
 
 Para conectar ao MySQL hospedado com SSL, preencha `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD` e `MYSQL_DATABASE`, e use `MYSQL_SSL=true`. Nunca versionar o arquivo `.env` nem publicar credenciais.
+
+`LIGA_POKEMON_URL_TEMPLATE` é obrigatória para consultar preços na Liga Pokémon e deve conter o marcador literal `{card_name}`, que será substituído pelo nome codificado da carta. Para o formato atual da Liga, use `https://www.ligapokemon.com.br/?view=cards/card&card={card_name}`. Quando `edition` for informado na rota, o back-end acrescentará `&ed=<codigo>`.
 
 Execute:
 
@@ -144,7 +147,21 @@ As migrations estão em:
 back-end/src/database/migrations
 ```
 
-Execute os arquivos SQL na ordem numérica (`001`, `002` e `003`) no banco configurado.
+Execute os arquivos SQL na ordem numérica (`001` a `007`) no banco configurado. A migration `004-create-card-prices.sql` cria a tabela de cache `card_prices`; a `005-add-edition-code-to-cards.sql` adiciona o código opcional da edição da Liga; a `006-add-image-url-to-card-prices.sql` adiciona a URL da imagem da Liga ao cache; e a `007-add-liga-reference-to-cards.sql` salva nome, número, total impresso e referência completa da Liga.
+
+### Preços da Liga Pokémon
+
+A rota `GET /prices?name=<nome>&edition=<codigo-opcional>` consulta o cache de preços por até 24 horas e só então acessa a Liga Pokémon. Se a Liga estiver indisponível, um cache antigo é devolvido com `stale: true`.
+
+Ao buscar uma carta pela tela de cartas, a prévia consulta a Liga Pokémon e exibe o preço médio (`m`) em BRL. TCGdex continua sendo usado para dados e imagens. Se a Liga estiver indisponível, o preço de mercado existente é usado como fallback e a mensagem da prévia informa a origem.
+
+Exemplo local:
+
+```bash
+curl "http://localhost:3001/prices?name=Charizard&edition=ABC"
+```
+
+No front-end, essa rota pode ser chamada a partir da tela que exibe os detalhes ou preços de uma carta, depois que o nome da carta e, opcionalmente, o código da edição estiverem disponíveis.
 
 ### Atualização de cartas
 
@@ -155,7 +172,7 @@ cd back-end
 node src/scripts/attPricesCards.js
 ```
 
-O script consulta novamente as fontes de cartas, aplica tentativas automáticas em caso de indisponibilidade temporária e preserva dados existentes quando a API não retornar algum campo.
+O script obtém automaticamente do catálogo público de cartas o nome, número, total impresso da coleção e código equivalente da edição. Com esses dados, monta a referência da Liga (por exemplo, `Gladion's Final Battle (118/084)`), consulta o HTML da Liga e usa o preço médio (`m`) nas colunas de preço já exibidas pela aplicação. Cartas sem metadados suficientes são preservadas e aparecem no relatório do script.
 
 ---
 

@@ -111,6 +111,11 @@ function CardsPage() {
           setName: selectedCard.set?.name,
           number: selectedCard.localId || selectedCard.number,
           rarity: selectedCard.rarity,
+          editionCode: result.pricing?.liga?.editionCode || selectedCard.editionCode,
+          ligaCardName: result.pricing?.liga?.name,
+          ligaCardNumber: result.pricing?.liga?.number,
+          ligaPrintedTotal: result.pricing?.liga?.printedTotal,
+          ligaCardReference: result.pricing?.liga?.reference,
         },
       });
 

@@ -8,7 +8,11 @@ function CardEstimatePanel({ result, onSave, saving, authenticated }) {
   const pricingAvailable = Boolean(result.pricing?.pricingAvailable);
   const hasEstimatedBrl = typeof result.pricing?.estimatedPriceBrl === 'number';
   const displayedBrl = hasEstimatedBrl ? result.pricing.estimatedPriceBrl : result.pricing?.priceBrl;
-  const brlLabel = hasEstimatedBrl ? 'Estimado BRL' : 'BRL';
+  const brlLabel = result.pricing?.source === 'liga-pokemon'
+    ? 'BRL (Liga Pokémon)'
+    : hasEstimatedBrl
+      ? 'Estimado BRL'
+      : 'BRL';
 
   return (
     <div className="page-card result-card">
@@ -19,7 +23,9 @@ function CardEstimatePanel({ result, onSave, saving, authenticated }) {
           <h3>{result.card.name}</h3>
           <p className="muted">{result.card.set?.name || result.card.setName}</p>
           <div className="meta-grid">
-            <span>USD {pricingAvailable ? result.pricing.sourceUsdPrice : 'Indisponivel'}</span>
+            {result.pricing?.source === 'liga-pokemon' ? null : (
+              <span>USD {pricingAvailable ? result.pricing.sourceUsdPrice : 'Indisponivel'}</span>
+            )}
             <span>{brlLabel} {pricingAvailable ? displayedBrl : 'Indisponivel'}</span>
             <span>{result.pricing.imageMessage}</span>
             <span>{result.pricing.pricingMessage}</span>

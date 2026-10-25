@@ -2,6 +2,8 @@ const axios = require('axios');
 const { env, isDatabaseConfigured } = require('../../config/env');
 const { getPool } = require('../../config/db');
 const { getUsdToBrlRate } = require('../prices/prices.service');
+const { getCachedCardPrices } = require('../ligaPokemon/cardPrices.service');
+const { getLigaCardReference } = require('../ligaPokemon/ligaPokemon.service');
 
 const TCGDEX_BASE_URL = 'https://api.tcgdex.net/v2/pt-br';
 const POKEMON_TCG_BASE_URL = 'https://api.pokemontcg.io/v2';
@@ -757,8 +759,8 @@ async function buildCardEstimateById(cardId, options = {}) {
   }
 
   const priceUsd = getMarketPriceUsd(marketCard, cardDetails);
-  const imageUrl = getCardImageUrl(cardDetails, marketCard);
-  const imageMeta = getCardImageMeta(cardDetails, marketCard, imageUrl);
+  let imageUrl = getCardImageUrl(cardDetails, marketCard);
+  let imageMeta = getCardImageMeta(cardDetails, marketCard, imageUrl);
 
   if (!cardDetails) {
     const error = new Error('Nao foi possivel localizar os dados desta carta.');
@@ -770,6 +772,7 @@ async function buildCardEstimateById(cardId, options = {}) {
   let priceBrl = null;
   let estimatedPriceBrl = null;
   let pricingMessage = 'Preco indisponivel para esta carta.';
+  let ligaPricing = null;
 
   if (priceUsd) {
     try {
@@ -781,6 +784,43 @@ async function buildCardEstimateById(cardId, options = {}) {
       pricingMessage = 'Preco USD localizado, mas a cotacao BRL esta indisponivel.';
       console.warn(`Cotacao USD/BRL indisponivel: ${error.message}`);
     }
+  }
+
+  try {
+    const ligaReference = await getLigaCardReference(cardDetails.id || cardId, cardDetails.name);
+    const ligaResult = await getCachedCardPrices(
+      cardDetails.name,
+      ligaReference.editionCode,
+      ligaReference.reference
+    );
+    const codes = Object.keys(ligaResult.prices);
+    const editionCode = ligaReference.editionCode?.toUpperCase()
+      || (codes.length === 1 ? codes[0] : null);
+    const ligaPrice = editionCode ? ligaResult.prices[editionCode] : null;
+
+    if (ligaPrice) {
+      ligaPricing = {
+        ...ligaPrice,
+        editionCode,
+        reference: ligaReference.reference,
+        name: ligaReference.name,
+        number: ligaReference.number,
+        printedTotal: ligaReference.printedTotal,
+        stale: ligaResult.stale,
+        imageUrl: ligaResult.imageUrl || null,
+      };
+      if (ligaResult.imageUrl) {
+        imageUrl = ligaResult.imageUrl;
+        imageMeta = getCardImageMeta(cardDetails, marketCard, imageUrl);
+      }
+      priceBrl = ligaPrice.avg;
+      estimatedPriceBrl = ligaPrice.avg;
+      pricingMessage = ligaResult.stale
+        ? 'Preco da Liga localizado no cache antigo.'
+        : 'Preco da Liga Pokémon localizado.';
+    }
+  } catch (error) {
+    console.warn(`Preco da Liga indisponivel para ${cardDetails.name}: ${error.message}`);
   }
 
   return {
@@ -795,8 +835,11 @@ async function buildCardEstimateById(cardId, options = {}) {
       priceBrl,
       discountPercent,
       estimatedPriceBrl,
-      pricingAvailable: Boolean(priceUsd),
+      pricingAvailable: Boolean(priceUsd || ligaPricing),
       pricingMessage,
+      source: ligaPricing ? 'liga-pokemon' : priceUsd ? 'market' : null,
+      liga: ligaPricing,
+      imageUrl: ligaPricing?.imageUrl || null,
       ...imageMeta,
     },
   };
@@ -824,13 +867,58 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
     throw error;
   }
 
-  const effectiveBrlPrice = Number.isFinite(Number(pricing.estimatedPriceBrl))
+  let ligaPricing = pricing.liga || null;
+
+  if (!ligaPricing && card.id) {
+    try {
+      const reference = await getLigaCardReference(card.id, card.name);
+      const ligaResult = await getCachedCardPrices(
+        card.name,
+        reference.editionCode,
+        reference.reference
+      );
+      const codes = Object.keys(ligaResult.prices);
+      const editionCode = reference.editionCode?.toUpperCase()
+        || (codes.length === 1 ? codes[0] : null);
+      const price = editionCode ? ligaResult.prices[editionCode] : null;
+
+      if (price) {
+        ligaPricing = {
+          ...price,
+          editionCode,
+          name: reference.name,
+          number: reference.number,
+          printedTotal: reference.printedTotal,
+          reference: reference.reference,
+          imageUrl: ligaResult.imageUrl,
+          stale: ligaResult.stale,
+        };
+      }
+    } catch (error) {
+      console.warn(`Preco da Liga indisponivel ao salvar ${card.name}: ${error.message}`);
+    }
+  }
+
+  const effectiveBrlPrice = ligaPricing
+    ? Number(ligaPricing.avg)
+    : Number.isFinite(Number(pricing.estimatedPriceBrl))
     ? Number(pricing.estimatedPriceBrl)
     : Number.isFinite(Number(pricing.priceBrl))
       ? Number(pricing.priceBrl)
       : null;
   const effectiveRarity = card.rarity || options.rarity || null;
-  const imageUrl = normalizeCardImageUrl(pricing.imageUrl || card.image || options.image || null);
+  const imageUrl = normalizeCardImageUrl(
+    ligaPricing?.imageUrl || pricing.imageUrl || card.image || options.image || null
+  );
+  let editionCode = options.editionCode || ligaPricing?.editionCode || null;
+
+  if (!editionCode && card.id) {
+    try {
+      editionCode = (await getLigaCardReference(card.id, card.name)).editionCode;
+    } catch (error) {
+      console.warn(`Codigo da edicao da Liga indisponivel para ${card.name}: ${error.message}`);
+    }
+  }
 
   const pool = getPool();
   const connection = await pool.getConnection();
@@ -846,8 +934,13 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
         amount__price_card,
         price_usd_card,
         price_brl_card,
-        discount_percent_card
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        discount_percent_card,
+        edition_code,
+        liga_card_name,
+        liga_card_number,
+        liga_printed_total,
+        liga_card_reference
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         name_card = VALUES(name_card),
         set_name_card = VALUES(set_name_card),
@@ -856,7 +949,12 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
         amount__price_card = COALESCE(VALUES(amount__price_card), amount__price_card),
         price_usd_card = COALESCE(VALUES(price_usd_card), price_usd_card),
         price_brl_card = COALESCE(VALUES(price_brl_card), price_brl_card),
-        discount_percent_card = COALESCE(VALUES(discount_percent_card), discount_percent_card)`,
+        discount_percent_card = COALESCE(VALUES(discount_percent_card), discount_percent_card),
+        edition_code = COALESCE(VALUES(edition_code), edition_code),
+        liga_card_name = COALESCE(VALUES(liga_card_name), liga_card_name),
+        liga_card_number = COALESCE(VALUES(liga_card_number), liga_card_number),
+        liga_printed_total = COALESCE(VALUES(liga_printed_total), liga_printed_total),
+        liga_card_reference = COALESCE(VALUES(liga_card_reference), liga_card_reference)`,
       [
         options.databaseId || card.id,
         card.name || null,
@@ -867,6 +965,11 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
         pricing.sourceUsdPrice ?? null,
         effectiveBrlPrice,
         pricing.discountPercent ?? null,
+        editionCode,
+        options.ligaCardName || ligaPricing?.name || null,
+        options.ligaCardNumber || ligaPricing?.number || null,
+        options.ligaPrintedTotal || ligaPricing?.printedTotal || null,
+        options.ligaCardReference || ligaPricing?.reference || null,
       ]
     );
 
@@ -981,10 +1084,122 @@ async function updateCardPrices() {
   }
 }
 
+async function updateCardPricesFromLiga() {
+  if (!isDatabaseConfigured()) {
+    const error = new Error('Banco de dados nao configurado.');
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const pool = getPool();
+  const connection = await pool.getConnection();
+  const notFound = [];
+  const updated = [];
+  const skipped = [];
+
+  try {
+    const [cards] = await connection.execute(
+      `SELECT
+        tcgdex_id,
+        name_card,
+        edition_code,
+        liga_card_name,
+        liga_card_number,
+        liga_printed_total,
+        liga_card_reference
+      FROM cards`
+    );
+
+    for (const card of cards) {
+      let editionCode = card.edition_code;
+      let reference = card.liga_card_reference;
+
+      try {
+        if (!reference || !editionCode) {
+          const resolved = await getLigaCardReference(card.tcgdex_id, card.name_card);
+          reference = reference || resolved.reference;
+          editionCode = editionCode || resolved.editionCode;
+          await connection.execute(
+            `UPDATE cards
+             SET liga_card_name = ?,
+                 liga_card_number = ?,
+                 liga_printed_total = ?,
+                 liga_card_reference = ?,
+                 edition_code = COALESCE(edition_code, ?)
+             WHERE tcgdex_id = ?`,
+            [
+              resolved.name,
+              resolved.number,
+              resolved.printedTotal,
+              resolved.reference,
+              resolved.editionCode,
+              card.tcgdex_id,
+            ]
+          );
+        }
+      } catch (error) {
+        skipped.push(card.tcgdex_id);
+        console.warn(`Referencia da Liga nao encontrada para ${card.name_card}: ${error.message}`);
+        continue;
+      }
+
+      try {
+        const result = await getCachedCardPrices(card.name_card, editionCode, reference);
+        const priceCodes = Object.keys(result.prices);
+        const resolvedCode = editionCode
+          ? editionCode.toUpperCase()
+          : priceCodes.length === 1
+            ? priceCodes[0]
+            : null;
+        const price = resolvedCode ? result.prices[resolvedCode] : null;
+
+        if (!price) {
+          notFound.push(card.tcgdex_id);
+          console.warn(
+            priceCodes.length > 1
+              ? `Mais de uma edicao da Liga encontrada para ${card.name_card}; atualizacao ignorada.`
+              : `Preco da Liga nao encontrado: ${card.name_card}`
+          );
+          continue;
+        }
+
+        await connection.execute(
+          `UPDATE cards
+           SET amount__price_card = ?,
+               price_brl_card = ?
+           WHERE tcgdex_id = ?`,
+          [price.avg, price.avg, card.tcgdex_id]
+        );
+        updated.push(card.tcgdex_id);
+        console.log(
+          `Atualizado pela Liga: ${card.name_card} (${resolvedCode})` +
+          `${result.stale ? ' [cache antigo]' : ''}`
+        );
+        await connection.execute(
+          'UPDATE cards SET edition_code = ? WHERE tcgdex_id = ?',
+          [resolvedCode, card.tcgdex_id]
+        );
+      } catch (error) {
+        notFound.push(card.tcgdex_id);
+        console.error(
+          `Falha ao atualizar pela Liga: ${card.name_card}: ${error.message}`
+        );
+      }
+    }
+  } finally {
+    connection.release();
+    console.log(
+      `\nResumo Liga: ${updated.length} atualizadas, ` +
+      `${notFound.length} com falha, ${skipped.length} sem edition_code`
+    );
+  }
+}
+
 module.exports = {
   buildCardEstimateById,
   buildCardEstimate,
   searchCardSuggestions,
   saveCardToDatabase,
   updateCardPrices,
+  updateCardPricesFromLiga,
 };
