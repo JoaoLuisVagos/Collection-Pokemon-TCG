@@ -614,6 +614,62 @@ function getCardImageMeta(cardDetails, marketCard, imageUrl) {
   };
 }
 
+async function enrichSuggestionsWithLigaData(cards) {
+  if (!isDatabaseConfigured() || !cards.length) {
+    return cards;
+  }
+
+  const tcgdexIds = cards
+    .map((card) => card.id)
+    .filter(Boolean);
+
+  if (!tcgdexIds.length) {
+    return cards;
+  }
+
+  const pool = getPool();
+  const placeholders = tcgdexIds.map(() => '?').join(', ');
+  const [rows] = await pool.execute(
+    `SELECT
+      cards.tcgdex_id,
+      card_prices.image_url,
+      card_prices.price_min,
+      card_prices.price_avg,
+      card_prices.price_max,
+      card_prices.edition_code
+     FROM cards
+     INNER JOIN card_prices ON card_prices.card_id = cards.id
+     WHERE cards.tcgdex_id IN (${placeholders})
+     ORDER BY card_prices.updated_at DESC`,
+    tcgdexIds
+  );
+
+  const byCardId = new Map();
+  for (const row of rows) {
+    if (!byCardId.has(row.tcgdex_id)) {
+      byCardId.set(row.tcgdex_id, row);
+    }
+  }
+
+  return cards.map((card) => {
+    const ligaData = byCardId.get(card.id);
+    if (!ligaData) {
+      return card;
+    }
+
+    return {
+      ...card,
+      image: ligaData.image_url || card.image,
+      ligaPrice: {
+        min: ligaData.price_min == null ? null : Number(ligaData.price_min),
+        avg: ligaData.price_avg == null ? null : Number(ligaData.price_avg),
+        max: ligaData.price_max == null ? null : Number(ligaData.price_max),
+        editionCode: ligaData.edition_code,
+      },
+    };
+  });
+}
+
 async function searchCardSuggestions(query) {
   const tcgdexCards = await searchCardInTcgdex(query);
   const marketCards = await searchCardInMarket(query);
@@ -649,7 +705,12 @@ async function searchCardSuggestions(query) {
     return normalizeText(a.name).localeCompare(normalizeText(b.name));
   });
 
-  return orderedCards;
+  try {
+    return await enrichSuggestionsWithLigaData(orderedCards);
+  } catch (error) {
+    console.warn(`Dados vinculados da Liga indisponiveis na busca: ${error.message}`);
+    return orderedCards;
+  }
 }
 
 async function getMarketCardById(cardId) {
@@ -776,6 +837,48 @@ async function buildCardEstimateById(cardId, options = {}) {
   let estimatedPriceBrl = null;
   let pricingMessage = 'Preco indisponivel para esta carta.';
   let ligaPricing = null;
+
+  if (isDatabaseConfigured()) {
+    try {
+      const pool = getPool();
+      const [linkedRows] = await pool.execute(
+        `SELECT
+          card_prices.image_url,
+          card_prices.price_min,
+          card_prices.price_avg,
+          card_prices.price_max,
+          card_prices.edition_code
+         FROM cards
+         INNER JOIN card_prices ON card_prices.card_id = cards.id
+         WHERE cards.tcgdex_id = ?
+         ORDER BY card_prices.updated_at DESC
+         LIMIT 1`,
+        [cardId]
+      );
+      const linkedPrice = linkedRows[0];
+
+      if (linkedPrice) {
+        ligaPricing = {
+          min: linkedPrice.price_min == null ? null : Number(linkedPrice.price_min),
+          avg: linkedPrice.price_avg == null ? null : Number(linkedPrice.price_avg),
+          max: linkedPrice.price_max == null ? null : Number(linkedPrice.price_max),
+          editionCode: linkedPrice.edition_code,
+          stale: false,
+          imageUrl: linkedPrice.image_url || null,
+        };
+        priceBrl = ligaPricing.avg;
+        estimatedPriceBrl = ligaPricing.avg;
+        pricingMessage = 'Preco da Liga Pokémon localizado no banco.';
+
+        if (ligaPricing.imageUrl) {
+          imageUrl = ligaPricing.imageUrl;
+          imageMeta = getCardImageMeta(cardDetails, marketCard, imageUrl);
+        }
+      }
+    } catch (error) {
+      console.warn(`Preco vinculado da Liga indisponivel: ${error.message}`);
+    }
+  }
 
   if (priceUsd) {
     try {
