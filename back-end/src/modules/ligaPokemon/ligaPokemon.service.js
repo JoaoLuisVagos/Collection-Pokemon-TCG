@@ -131,9 +131,16 @@ async function findLigaReferenceBySearch(name, number, printedTotal = null) {
     }
   }
 
-  return candidates.find((candidate) => candidate.matchesName && candidate.matchesTotal)
-    || candidates.find((candidate) => candidate.matchesTotal)
-    || (candidates.length === 1 ? candidates[0] : null);
+  const uniqueCandidates = candidates.filter((candidate, index, all) =>
+    all.findIndex((item) =>
+      item.reference === candidate.reference
+      && item.editionCode === candidate.editionCode
+    ) === index
+  );
+
+  return uniqueCandidates.find((candidate) => candidate.matchesName && candidate.matchesTotal)
+    || uniqueCandidates.find((candidate) => candidate.matchesTotal)
+    || (uniqueCandidates.length === 1 ? uniqueCandidates[0] : null);
 }
 
 async function fetchCardPage(url) {
