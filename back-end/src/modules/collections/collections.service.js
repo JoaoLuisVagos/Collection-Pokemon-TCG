@@ -119,9 +119,33 @@ async function addCardToCollection(userId, { cardId, amount, acquisitionDate } =
       cards.amount__price_card,
       cards.price_usd_card,
       cards.price_brl_card,
-      COALESCE(card_prices.price_min, card_prices_by_name.price_min) AS liga_price_min,
-      COALESCE(card_prices.price_avg, card_prices_by_name.price_avg) AS liga_price_avg,
-      COALESCE(card_prices.price_max, card_prices_by_name.price_max) AS liga_price_max,
+      COALESCE(
+        (SELECT price_min FROM card_prices
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(cards.name_card))
+           AND UPPER(edition_code) = UPPER(cards.edition_code)
+         ORDER BY updated_at DESC LIMIT 1),
+        (SELECT price_min FROM card_prices
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(cards.name_card))
+         ORDER BY updated_at DESC LIMIT 1)
+      ) AS liga_price_min,
+      COALESCE(
+        (SELECT price_avg FROM card_prices
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(cards.name_card))
+           AND UPPER(edition_code) = UPPER(cards.edition_code)
+         ORDER BY updated_at DESC LIMIT 1),
+        (SELECT price_avg FROM card_prices
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(cards.name_card))
+         ORDER BY updated_at DESC LIMIT 1)
+      ) AS liga_price_avg,
+      COALESCE(
+        (SELECT price_max FROM card_prices
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(cards.name_card))
+           AND UPPER(edition_code) = UPPER(cards.edition_code)
+         ORDER BY updated_at DESC LIMIT 1),
+        (SELECT price_max FROM card_prices
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(cards.name_card))
+         ORDER BY updated_at DESC LIMIT 1)
+      ) AS liga_price_max,
       cards.discount_percent_card,
       cards.created_at AS card_created_at
     FROM collection
@@ -172,19 +196,37 @@ async function listUserCollection(userId, params = {}) {
       cards.amount__price_card,
       cards.price_usd_card,
       cards.price_brl_card,
-      COALESCE(card_prices.price_min, card_prices_by_name.price_min) AS liga_price_min,
-      COALESCE(card_prices.price_avg, card_prices_by_name.price_avg) AS liga_price_avg,
-      COALESCE(card_prices.price_max, card_prices_by_name.price_max) AS liga_price_max,
+      COALESCE(
+        (SELECT price_min FROM card_prices
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(cards.name_card))
+           AND UPPER(edition_code) = UPPER(cards.edition_code)
+         ORDER BY updated_at DESC LIMIT 1),
+        (SELECT price_min FROM card_prices
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(cards.name_card))
+         ORDER BY updated_at DESC LIMIT 1)
+      ) AS liga_price_min,
+      COALESCE(
+        (SELECT price_avg FROM card_prices
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(cards.name_card))
+           AND UPPER(edition_code) = UPPER(cards.edition_code)
+         ORDER BY updated_at DESC LIMIT 1),
+        (SELECT price_avg FROM card_prices
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(cards.name_card))
+         ORDER BY updated_at DESC LIMIT 1)
+      ) AS liga_price_avg,
+      COALESCE(
+        (SELECT price_max FROM card_prices
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(cards.name_card))
+           AND UPPER(edition_code) = UPPER(cards.edition_code)
+         ORDER BY updated_at DESC LIMIT 1),
+        (SELECT price_max FROM card_prices
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(cards.name_card))
+         ORDER BY updated_at DESC LIMIT 1)
+      ) AS liga_price_max,
       cards.discount_percent_card,
       cards.created_at AS card_created_at
     FROM collection
     INNER JOIN cards ON cards.id = collection.card_id
-    LEFT JOIN card_prices
-      ON LOWER(TRIM(card_prices.card_name)) = LOWER(TRIM(cards.name_card))
-      AND card_prices.edition_code = cards.edition_code
-    LEFT JOIN card_prices AS card_prices_by_name
-      ON card_prices.id IS NULL
-      AND LOWER(TRIM(card_prices_by_name.card_name)) = LOWER(TRIM(cards.name_card))
     WHERE collection.user_id = ?
     ORDER BY CASE LOWER(TRIM(cards.rarity_card))
         WHEN 'hyper rare' THEN 100
@@ -230,12 +272,6 @@ async function listUserCollection(userId, params = {}) {
         COALESCE(SUM(collection.amount_card_collection * cards.price_brl_card), 0) AS total_value_brl
     FROM collection
     INNER JOIN cards ON cards.id = collection.card_id
-    LEFT JOIN card_prices
-      ON LOWER(TRIM(card_prices.card_name)) = LOWER(TRIM(cards.name_card))
-      AND card_prices.edition_code = cards.edition_code
-    LEFT JOIN card_prices AS card_prices_by_name
-      ON card_prices.id IS NULL
-      AND LOWER(TRIM(card_prices_by_name.card_name)) = LOWER(TRIM(cards.name_card))
     WHERE collection.user_id = ?`,
     [normalizedUserId]
   );
