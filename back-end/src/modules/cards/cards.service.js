@@ -12,6 +12,40 @@ const CARD_SEARCH_ALIASES = {
   'salamence ex': ['salamance ex'],
 };
 const REQUEST_TIMEOUT_MS = 8000;
+const API_RETRY_ATTEMPTS = 4;
+const API_RETRY_DELAY_MS = 1000;
+const CARD_UPDATE_DELAY_MS = 350;
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function isRetryableApiError(error) {
+  const status = error.response?.status;
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+async function requestWithRetry(config) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await axios.request(config);
+    } catch (error) {
+      if (!isRetryableApiError(error) || attempt >= API_RETRY_ATTEMPTS - 1) {
+        throw error;
+      }
+
+      const retryAfter = Number(error.response?.headers?.['retry-after']);
+      const delay = Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : API_RETRY_DELAY_MS * (2 ** attempt);
+
+      console.warn(
+        `API indisponivel (${error.response?.status}), nova tentativa em ${delay}ms...`
+      );
+      await wait(delay);
+    }
+  }
+}
 
 function normalizeText(value) {
   return String(value || '').trim().toLowerCase();
@@ -459,7 +493,9 @@ async function searchCardInMarket(query) {
 
 async function getCardDetailsInTcgdex(cardId) {
   try {
-    const response = await axios.get(`${TCGDEX_BASE_URL}/cards/${encodeURIComponent(cardId)}`, {
+    const response = await requestWithRetry({
+      method: 'GET',
+      url: `${TCGDEX_BASE_URL}/cards/${encodeURIComponent(cardId)}`,
       timeout: REQUEST_TIMEOUT_MS,
     });
     return response.data;
@@ -467,7 +503,9 @@ async function getCardDetailsInTcgdex(cardId) {
     if (error.response?.status === 404) {
       console.warn(`Carta ${cardId} nao encontrada em pt-br, tentando en...`);
       const fallbackUrl = TCGDEX_BASE_URL.replace('/pt-br', '/en');
-      const response = await axios.get(`${fallbackUrl}/cards/${encodeURIComponent(cardId)}`, {
+      const response = await requestWithRetry({
+        method: 'GET',
+        url: `${fallbackUrl}/cards/${encodeURIComponent(cardId)}`,
         timeout: REQUEST_TIMEOUT_MS,
       });
       return response.data;
@@ -536,10 +574,22 @@ function getMarketPriceUsd(marketCard, cardDetails) {
   );
 }
 
+function normalizeCardImageUrl(imageUrl) {
+  if (!imageUrl || !imageUrl.startsWith('https://assets.tcgdex.net/')) {
+    return imageUrl || null;
+  }
+
+  return /\.(png|jpe?g|webp)(\?.*)?$/i.test(imageUrl)
+    ? imageUrl
+    : `${imageUrl.replace(/\/$/, '')}/high.webp`;
+}
+
 function getCardImageUrl(cardDetails, marketCard) {
-  return (
+  return normalizeCardImageUrl(
     marketCard?.images?.large ||
     marketCard?.images?.small ||
+    cardDetails?.images?.large ||
+    cardDetails?.images?.small ||
     cardDetails?.image ||
     null
   );
@@ -620,6 +670,7 @@ function normalizeMarketCard(card, fallbackCard = null) {
       name: fallbackCard.name,
       localId: fallbackCard.number || null,
       set: fallbackCard.setName ? { name: fallbackCard.setName } : null,
+      rarity: fallbackCard.rarity || null,
       image: fallbackCard.image || null,
       source: 'market',
     };
@@ -689,6 +740,20 @@ async function buildCardEstimateById(cardId, options = {}) {
         throw error;
       }
     }
+  }
+
+  if (!cardDetails?.rarity && options.fallbackCard?.rarity) {
+    cardDetails = {
+      ...cardDetails,
+      rarity: options.fallbackCard.rarity,
+    };
+  }
+
+  if (!getCardImageUrl(cardDetails, marketCard) && options.fallbackCard?.image) {
+    cardDetails = {
+      ...cardDetails,
+      image: options.fallbackCard.image,
+    };
   }
 
   const priceUsd = getMarketPriceUsd(marketCard, cardDetails);
@@ -764,7 +829,8 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
     : Number.isFinite(Number(pricing.priceBrl))
       ? Number(pricing.priceBrl)
       : null;
-  const imageUrl = pricing.imageUrl || card.image || null;
+  const effectiveRarity = card.rarity || options.rarity || null;
+  const imageUrl = normalizeCardImageUrl(pricing.imageUrl || card.image || options.image || null);
 
   const pool = getPool();
   const connection = await pool.getConnection();
@@ -785,7 +851,7 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
       ON DUPLICATE KEY UPDATE
         name_card = VALUES(name_card),
         set_name_card = VALUES(set_name_card),
-        rarity_card = VALUES(rarity_card),
+        rarity_card = COALESCE(VALUES(rarity_card), rarity_card),
         image_card = COALESCE(VALUES(image_card), image_card),
         amount__price_card = COALESCE(VALUES(amount__price_card), amount__price_card),
         price_usd_card = COALESCE(VALUES(price_usd_card), price_usd_card),
@@ -795,7 +861,7 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
         options.databaseId || card.id,
         card.name || null,
         card.set?.name || null,
-        card.rarity || null,
+        effectiveRarity,
         imageUrl,
         effectiveBrlPrice,
         pricing.sourceUsdPrice ?? null,
@@ -845,7 +911,9 @@ async function findCardForPriceUpdate(card) {
   }
 
   try {
-    const response = await axios.get(`${TCGDEX_BASE_URL.replace('/pt-br', '/en')}/cards`, {
+    const response = await requestWithRetry({
+      method: 'GET',
+      url: `${TCGDEX_BASE_URL.replace('/pt-br', '/en')}/cards`,
       params: { name: card.name_card },
       timeout: REQUEST_TIMEOUT_MS,
     });
@@ -875,17 +943,32 @@ async function updateCardPrices() {
 
     for (const card of cards) {
       try {
+        await wait(CARD_UPDATE_DELAY_MS);
         const sourceCard = await findCardForPriceUpdate(card);
         if (!sourceCard) {
           throw new Error('Carta nao encontrada por ID ou nome.');
         }
 
-        const estimate = await buildCardEstimateById(sourceCard.id, { source: 'tcgdex' });
+        const estimate = await buildCardEstimateById(sourceCard.id, {
+          source: 'tcgdex',
+          fallbackCard: {
+            id: sourceCard.id,
+            name: sourceCard.name || card.name_card,
+            image: sourceCard.image,
+            setName: sourceCard.set?.name || card.set_name_card,
+            number: sourceCard.localId,
+            rarity: sourceCard.rarity || card.rarity_card,
+          },
+        });
         await saveCardToDatabase(estimate.card, estimate.pricing, {
           databaseId: card.tcgdex_id,
+          rarity: sourceCard.rarity || card.rarity_card,
+          image: sourceCard.image || card.image_card,
         });
         updated.push(card.tcgdex_id);
-        console.log(`✔ Atualizado: ${card.name_card} (${card.tcgdex_id})`);
+        console.log(
+          `✔ Atualizado: ${card.name_card} (${card.tcgdex_id}) - raridade: ${estimate.card.rarity || 'nao encontrada'}`
+        );
       } catch (error) {
         notFound.push(card.tcgdex_id);
         console.error(`✖ Nao encontrado em nenhuma fonte: ${card.name_card} (${card.tcgdex_id})`);

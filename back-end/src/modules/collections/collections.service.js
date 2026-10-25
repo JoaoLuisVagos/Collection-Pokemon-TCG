@@ -171,15 +171,38 @@ async function listUserCollection(userId, params = {}) {
     FROM collection
     INNER JOIN cards ON cards.id = collection.card_id
     WHERE collection.user_id = ?
-    ORDER BY CASE cards.rarity_card
-        WHEN 'Promo' THEN 1
-        WHEN 'Double Rare' THEN 2
-        WHEN 'Shiny Rare' THEN 3
-        WHEN 'Ultra Rare' THEN 4
-        WHEN 'Illustration Rare' THEN 5
-        WHEN 'Special Illustration Rare' THEN 6
-        WHEN 'Hyper Rare' THEN 7
-        ELSE 999
+    ORDER BY CASE LOWER(TRIM(cards.rarity_card))
+        WHEN 'hyper rare' THEN 100
+        WHEN 'three star' THEN 95
+        WHEN 'two star' THEN 90
+        WHEN 'one star' THEN 85
+        WHEN 'special illustration rare' THEN 80
+        WHEN 'illustration rare' THEN 75
+        WHEN 'shiny ultra rare' THEN 70
+        WHEN 'ultra rare' THEN 65
+        WHEN 'pikachu rare' THEN 62
+        WHEN 'four diamond' THEN 60
+        WHEN 'three diamond' THEN 55
+        WHEN 'two diamond' THEN 50
+        WHEN 'one diamond' THEN 45
+        WHEN 'ace spec rare' THEN 40
+        WHEN 'triple rare' THEN 35
+        WHEN 'double rare' THEN 30
+        WHEN 'shiny rare' THEN 25
+        WHEN 'radiant rare' THEN 24
+        WHEN 'amazing rare' THEN 23
+        WHEN 'rare secret' THEN 22
+        WHEN 'rare rainbow' THEN 21
+        WHEN 'rare holo vmax' THEN 20
+        WHEN 'rare holo v' THEN 19
+        WHEN 'rare holo gx' THEN 18
+        WHEN 'rare holo ex' THEN 17
+        WHEN 'rare holo' THEN 16
+        WHEN 'rare' THEN 15
+        WHEN 'promo' THEN 10
+        WHEN 'uncommon' THEN 5
+        WHEN 'common' THEN 1
+        ELSE 0
     END DESC, cards.price_brl_card DESC, cards.name_card ASC
     LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
     [normalizedUserId]

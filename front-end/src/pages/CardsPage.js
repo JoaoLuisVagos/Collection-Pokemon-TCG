@@ -76,6 +76,7 @@ function CardsPage() {
         image: card.image || '',
         setName: card.set?.name || '',
         number: card.localId || card.number || '',
+        rarity: card.rarity || '',
       });
       const response = await request(`/cards/estimate?${params.toString()}`);
       setResult(response);
@@ -109,6 +110,7 @@ function CardsPage() {
           image: selectedCard.image,
           setName: selectedCard.set?.name,
           number: selectedCard.localId || selectedCard.number,
+          rarity: selectedCard.rarity,
         },
       });
 

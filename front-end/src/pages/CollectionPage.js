@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { request } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -12,17 +12,25 @@ function CollectionPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [totalValueBrl, setTotalValueBrl] = useState(0);
+  const collectionRequestRef = useRef(null);
 
   const loadCollection = useCallback(async (page = 1) => {
+    const requestKey = `${token || 'anonymous'}:${page}`;
+    if (collectionRequestRef.current === requestKey) {
+      return;
+    }
+
+    collectionRequestRef.current = requestKey;
     setLoading(true);
     setError('');
 
     try {
-      const response = await request(`/collections?page=${page}&limit=12`, { token });
+      const response = await request(`/collections?page=${page}&limit=18`, { token });
       setTotalValueBrl(response.totalValueBrl || 0);
       setItems(response.data || []);
-      setPagination(response.pagination || { page, limit: 12, totalPages: 0, totalItems: 0 });
+      setPagination(response.pagination || { page, limit: 18, totalPages: 0, totalItems: 0 });
     } catch (requestError) {
+      collectionRequestRef.current = null;
       setError(requestError.message);
     } finally {
       setLoading(false);
@@ -35,6 +43,7 @@ function CollectionPage() {
 
     try {
       await request(`/collections/${cardId}`, { method: 'DELETE', token });
+      collectionRequestRef.current = null;
       loadCollection(pagination.page);
     } catch (deleteError) {
       setError(deleteError.message);

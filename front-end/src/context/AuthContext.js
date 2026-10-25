@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { request } from '../config/api';
 
 const AuthContext = createContext(null);
@@ -10,9 +10,11 @@ function AuthProvider({ children }) {
     return storedUser ? JSON.parse(storedUser) : null;
   });
   const [loading, setLoading] = useState(Boolean(token));
+  const profileRequestRef = useRef(null);
 
   useEffect(() => {
     if (!token) {
+      profileRequestRef.current = null;
       setUser(null);
       setLoading(false);
       localStorage.removeItem('authToken');
@@ -27,36 +29,28 @@ function AuthProvider({ children }) {
   }, [token, user]);
 
   useEffect(() => {
-    let active = true;
-
     async function loadProfile() {
       if (!token) {
         return;
       }
+      if (profileRequestRef.current === token) {
+        return;
+      }
 
+      profileRequestRef.current = token;
       try {
         const response = await request('/users/me', { token });
-
-        if (active) {
-          setUser(response.user);
-        }
+        setUser(response.user);
       } catch (error) {
-        if (active) {
-          setToken('');
-          setUser(null);
-        }
+        profileRequestRef.current = null;
+        setToken('');
+        setUser(null);
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     }
 
     loadProfile();
-
-    return () => {
-      active = false;
-    };
   }, [token]);
 
   const login = useCallback(async (credentials) => {
