@@ -995,6 +995,16 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
       options.databaseId || card.id,
     ]);
 
+    if (rows[0]?.id && rows[0].edition_code) {
+      await connection.execute(
+        `UPDATE card_prices
+         SET card_id = ?
+         WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(?))
+           AND UPPER(edition_code) = UPPER(?)`,
+        [rows[0].id, rows[0].name_card, rows[0].edition_code]
+      );
+    }
+
     return {
       operation: result.affectedRows > 0 ? 'saved' : 'updated',
       card: rows[0] || null,

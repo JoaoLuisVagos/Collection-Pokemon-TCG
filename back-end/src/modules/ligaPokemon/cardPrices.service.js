@@ -60,6 +60,16 @@ async function savePrices(cardName, prices, imageUrl) {
         image_url = VALUES(image_url)`,
       [cardName, editionCode, price.min, price.avg, price.max, imageUrl || null]
     );
+
+    await pool.execute(
+      `UPDATE card_prices AS price
+       INNER JOIN cards AS card
+         ON LOWER(TRIM(card.name_card)) = LOWER(TRIM(price.card_name))
+        AND UPPER(card.edition_code) = UPPER(price.edition_code)
+       SET price.card_id = card.id
+       WHERE price.card_name = ? AND price.edition_code = ?`,
+      [cardName, editionCode]
+    );
   }
 }
 

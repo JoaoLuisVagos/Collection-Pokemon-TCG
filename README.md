@@ -147,7 +147,7 @@ As migrations estão em:
 back-end/src/database/migrations
 ```
 
-Execute os arquivos SQL na ordem numérica (`001` a `007`) no banco configurado. A migration `004-create-card-prices.sql` cria a tabela de cache `card_prices`; a `005-add-edition-code-to-cards.sql` adiciona o código opcional da edição da Liga; a `006-add-image-url-to-card-prices.sql` adiciona a URL da imagem da Liga ao cache; e a `007-add-liga-reference-to-cards.sql` salva nome, número, total impresso e referência completa da Liga.
+Execute os arquivos SQL na ordem numérica (`001` a `008`) no banco configurado. A migration `004-create-card-prices.sql` cria a tabela de cache `card_prices`; a `005-add-edition-code-to-cards.sql` adiciona o código opcional da edição da Liga; a `006-add-image-url-to-card-prices.sql` adiciona a URL da imagem da Liga ao cache; a `007-add-liga-reference-to-cards.sql` salva nome, número, total impresso e referência completa da Liga; e a `008-link-card-prices-to-cards.sql` cria a FK entre `card_prices` e `cards`, além de vincular os preços já existentes.
 
 ### Preços da Liga Pokémon
 
