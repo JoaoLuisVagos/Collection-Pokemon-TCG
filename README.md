@@ -16,6 +16,22 @@ Sistema web para gerenciamento de coleção de cartas do Pokémon Trading Card G
 
 ---
 
+## 🖼️ Demonstração
+
+### Tela inicial
+
+![tela_inicial.png](docs/tela_inicial.png)
+
+### Coleção de cartas
+
+![Tela da coleção de cartas](docs/colecao.png)
+
+### Pesquisa e adição de cartas
+
+![Pesquisa e adição de uma carta](docs/Pesquisa_e_adicao_da_carta.gif)
+
+---
+
 ## 🛠 Tecnologias
 
 ### Front-end
@@ -63,7 +79,7 @@ Collection-Pokemon-TCG
 
 ### Aplicação publicada
 
-- Front-end: https://collection-pokemon-qhpbyisq6-joao-luis-vagos.vercel.app
+- Front-end: https://collection-pokemon-tcg-kappa.vercel.app/
 - API: https://collection-pokemon-tcg.onrender.com
 - Health check: https://collection-pokemon-tcg.onrender.com/health
 
