@@ -1,0 +1,15 @@
+name: Keep API alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Render API
+        run: |
+          curl --fail --silent --show-error --max-time 30 \
+            https://collection-pokemon-tcg.onrender.com/health
