@@ -102,16 +102,20 @@ function CollectionPage() {
                 <h3>{item.card.name}</h3>
                 <p>{item.card.setName}</p>
                 <p>Quantidade: {item.amount}</p>
-                <p>
-                  BRL médio: {Number.isFinite(Number(item.card.ligaPriceAvg ?? item.card.priceBrl))
+                {item.card.ligaPriceMin != null ? (
+                    <>
+                      <p style={{ color: 'green' }}>BRL Min: {Number(item.card.ligaPriceMin).toFixed(2)}</p>
+                    </>
+                ) : null}
+                <p style={{ color: 'yellow' }}>
+                  BRL MED: {Number.isFinite(Number(item.card.ligaPriceAvg ?? item.card.priceBrl))
                     ? Number(item.card.ligaPriceAvg ?? item.card.priceBrl).toFixed(2)
                     : 'N/A'}
                 </p>
-                {item.card.ligaPriceMin != null || item.card.ligaPriceMax != null ? (
-                  <>
-                    <p>BRL mínimo: {Number(item.card.ligaPriceMin).toFixed(2)}</p>
-                    <p>BRL máximo: {Number(item.card.ligaPriceMax).toFixed(2)}</p>
-                  </>
+                {item.card.ligaPriceMax != null ? (
+                    <>
+                      <p style={{ color: 'red' }}>BRL Max: {Number(item.card.ligaPriceMax).toFixed(2)}</p>
+                    </>
                 ) : null}
                 <button
                   className="button secondary"

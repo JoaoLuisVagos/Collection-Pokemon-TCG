@@ -119,9 +119,9 @@ async function addCardToCollection(userId, { cardId, amount, acquisitionDate } =
       cards.amount__price_card,
       cards.price_usd_card,
       cards.price_brl_card,
-      card_prices.price_min AS liga_price_min,
-      card_prices.price_avg AS liga_price_avg,
-      card_prices.price_max AS liga_price_max,
+      COALESCE(card_prices.price_min, card_prices_by_name.price_min) AS liga_price_min,
+      COALESCE(card_prices.price_avg, card_prices_by_name.price_avg) AS liga_price_avg,
+      COALESCE(card_prices.price_max, card_prices_by_name.price_max) AS liga_price_max,
       cards.discount_percent_card,
       cards.created_at AS card_created_at
     FROM collection
@@ -172,9 +172,9 @@ async function listUserCollection(userId, params = {}) {
       cards.amount__price_card,
       cards.price_usd_card,
       cards.price_brl_card,
-      card_prices.price_min AS liga_price_min,
-      card_prices.price_avg AS liga_price_avg,
-      card_prices.price_max AS liga_price_max,
+      COALESCE(card_prices.price_min, card_prices_by_name.price_min) AS liga_price_min,
+      COALESCE(card_prices.price_avg, card_prices_by_name.price_avg) AS liga_price_avg,
+      COALESCE(card_prices.price_max, card_prices_by_name.price_max) AS liga_price_max,
       cards.discount_percent_card,
       cards.created_at AS card_created_at
     FROM collection
@@ -182,6 +182,9 @@ async function listUserCollection(userId, params = {}) {
     LEFT JOIN card_prices
       ON LOWER(TRIM(card_prices.card_name)) = LOWER(TRIM(cards.name_card))
       AND card_prices.edition_code = cards.edition_code
+    LEFT JOIN card_prices AS card_prices_by_name
+      ON card_prices.id IS NULL
+      AND LOWER(TRIM(card_prices_by_name.card_name)) = LOWER(TRIM(cards.name_card))
     WHERE collection.user_id = ?
     ORDER BY CASE LOWER(TRIM(cards.rarity_card))
         WHEN 'hyper rare' THEN 100
@@ -230,6 +233,9 @@ async function listUserCollection(userId, params = {}) {
     LEFT JOIN card_prices
       ON LOWER(TRIM(card_prices.card_name)) = LOWER(TRIM(cards.name_card))
       AND card_prices.edition_code = cards.edition_code
+    LEFT JOIN card_prices AS card_prices_by_name
+      ON card_prices.id IS NULL
+      AND LOWER(TRIM(card_prices_by_name.card_name)) = LOWER(TRIM(cards.name_card))
     WHERE collection.user_id = ?`,
     [normalizedUserId]
   );

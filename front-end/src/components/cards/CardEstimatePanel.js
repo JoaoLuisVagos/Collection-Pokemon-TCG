@@ -40,9 +40,9 @@ function CardEstimatePanel({ result, onSave, saving, authenticated }) {
             )}
             {ligaPrice ? (
               <>
-                <span>BRL mínimo: {formatBrl(ligaPrice.min)}</span>
-                <span>BRL médio: {formatBrl(ligaPrice.avg)}</span>
-                <span>BRL máximo: {formatBrl(ligaPrice.max)}</span>
+                <span>BRL Min: {formatBrl(ligaPrice.min)}</span>
+                <span>BRL MED: {formatBrl(ligaPrice.avg)}</span>
+                <span>BRL Max: {formatBrl(ligaPrice.max)}</span>
               </>
             ) : (
               <span>{brlLabel} {pricingAvailable ? displayedBrl : 'Indisponivel'}</span>
