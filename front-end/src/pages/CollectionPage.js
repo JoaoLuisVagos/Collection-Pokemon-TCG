@@ -97,7 +97,7 @@ function CollectionPage() {
         <div className="collection-grid">
           {items.map((item) => (
             <article className="card-tile" key={item.id}>
-              <CardArt src={item.card.liga_image_url} alt={item.card.liga_image_url} className="card-image" />
+              <CardArt src={item.card.image} alt={item.card.name} className="card-image" />
               <div>
                 <h3>{item.card.name}</h3>
                 <p>{item.card.setName}</p>
