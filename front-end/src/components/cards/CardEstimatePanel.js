@@ -14,9 +14,12 @@ function CardEstimatePanel({ result, onSave, saving, authenticated }) {
   const pricingAvailable = Boolean(result.pricing?.pricingAvailable);
   const hasEstimatedBrl = typeof result.pricing?.estimatedPriceBrl === 'number';
   const displayedBrl = hasEstimatedBrl ? result.pricing.estimatedPriceBrl : result.pricing?.priceBrl;
-  const ligaPrice = result.pricing?.source === 'liga-pokemon'
-    ? result.pricing.liga
-    : null;
+  const ligaPrice = result.pricing?.liga
+    || (result.pricing?.source === 'liga-pokemon' && (
+      typeof result.pricing.min === 'number'
+      || typeof result.pricing.avg === 'number'
+      || typeof result.pricing.max === 'number'
+    ) ? result.pricing : null);
   const brlLabel = result.pricing?.source === 'liga-pokemon'
     ? 'BRL (Liga Pokémon)'
     : hasEstimatedBrl

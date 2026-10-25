@@ -103,10 +103,16 @@ function CollectionPage() {
                 <p>{item.card.setName}</p>
                 <p>Quantidade: {item.amount}</p>
                 <p>
-                  BRL: {Number.isFinite(Number(item.card.priceBrl))
-                    ? Number(item.card.priceBrl).toFixed(2)
+                  BRL médio: {Number.isFinite(Number(item.card.ligaPriceAvg ?? item.card.priceBrl))
+                    ? Number(item.card.ligaPriceAvg ?? item.card.priceBrl).toFixed(2)
                     : 'N/A'}
                 </p>
+                {item.card.ligaPriceMin != null || item.card.ligaPriceMax != null ? (
+                  <>
+                    <p>BRL mínimo: {Number(item.card.ligaPriceMin).toFixed(2)}</p>
+                    <p>BRL máximo: {Number(item.card.ligaPriceMax).toFixed(2)}</p>
+                  </>
+                ) : null}
                 <button
                   className="button secondary"
                   type="button"
