@@ -11,6 +11,8 @@ Sistema web para gerenciamento de coleção de cartas do Pokémon Trading Card G
 - 💰 Exibição de preços em BRL e USD
 - 📈 Controle de quantidade de cartas
 - 🔎 Busca e filtros
+- 🏆 Ordenação da coleção por raridade
+- 🖼️ Fallback e normalização das imagens das cartas
 
 ---
 
@@ -59,6 +61,12 @@ Collection-Pokemon-TCG
 
 ## ⚙️ Instalação
 
+### Aplicação publicada
+
+- Front-end: https://collection-pokemon-qhpbyisq6-joao-luis-vagos.vercel.app
+- API: https://collection-pokemon-tcg.onrender.com
+- Health check: https://collection-pokemon-tcg.onrender.com/health
+
 ### Clone o projeto
 
 ```bash
@@ -76,15 +84,19 @@ Crie um arquivo `.env`:
 
 ```env
 PORT=3001
+LANGUAGE_DISCOUNT_PERCENT=18
+JWT_SECRET=seu-segredo-jwt
+JWT_EXPIRES_IN=7d
 
-DB_HOST=
-DB_PORT=
-DB_USER=
-DB_PASSWORD=
-DB_NAME=
-
-JWT_SECRET=
+MYSQL_HOST=
+MYSQL_PORT=3306
+MYSQL_USER=
+MYSQL_PASSWORD=
+MYSQL_DATABASE=
+MYSQL_SSL=false
 ```
+
+Para conectar ao MySQL hospedado com SSL, preencha `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD` e `MYSQL_DATABASE`, e use `MYSQL_SSL=true`. Nunca versionar o arquivo `.env` nem publicar credenciais.
 
 Execute:
 
@@ -113,6 +125,19 @@ As migrations estão em:
 ```
 back-end/src/database/migrations
 ```
+
+Execute os arquivos SQL na ordem numérica (`001`, `002` e `003`) no banco configurado.
+
+### Atualização de cartas
+
+Para atualizar preços, raridades e imagens das cartas já cadastradas:
+
+```bash
+cd back-end
+node src/scripts/attPricesCards.js
+```
+
+O script consulta novamente as fontes de cartas, aplica tentativas automáticas em caso de indisponibilidade temporária e preserva dados existentes quando a API não retornar algum campo.
 
 ---
 
