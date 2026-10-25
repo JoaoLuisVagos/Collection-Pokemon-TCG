@@ -67,6 +67,8 @@ Collection-Pokemon-TCG
 - API: https://collection-pokemon-tcg.onrender.com
 - Health check: https://collection-pokemon-tcg.onrender.com/health
 
+O workflow `Keep API alive` executa uma chamada ao health check a cada 10 minutos para reduzir o tempo de inicialização da API no Render. O agendamento do GitHub Actions pode sofrer atrasos e não substitui um plano de hospedagem sem suspensão automática.
+
 ### Clone o projeto
 
 ```bash
