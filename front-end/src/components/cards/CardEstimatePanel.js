@@ -1,5 +1,11 @@
 import CardArt from './CardArt';
 
+function formatBrl(value) {
+  return typeof value === 'number'
+    ? `R$ ${value.toFixed(2).replace('.', ',')}`
+    : 'Indisponível';
+}
+
 function CardEstimatePanel({ result, onSave, saving, authenticated }) {
   if (!result) {
     return null;
@@ -8,6 +14,9 @@ function CardEstimatePanel({ result, onSave, saving, authenticated }) {
   const pricingAvailable = Boolean(result.pricing?.pricingAvailable);
   const hasEstimatedBrl = typeof result.pricing?.estimatedPriceBrl === 'number';
   const displayedBrl = hasEstimatedBrl ? result.pricing.estimatedPriceBrl : result.pricing?.priceBrl;
+  const ligaPrice = result.pricing?.source === 'liga-pokemon'
+    ? result.pricing.liga
+    : null;
   const brlLabel = result.pricing?.source === 'liga-pokemon'
     ? 'BRL (Liga Pokémon)'
     : hasEstimatedBrl
@@ -26,7 +35,15 @@ function CardEstimatePanel({ result, onSave, saving, authenticated }) {
             {result.pricing?.source === 'liga-pokemon' ? null : (
               <span>USD {pricingAvailable ? result.pricing.sourceUsdPrice : 'Indisponivel'}</span>
             )}
-            <span>{brlLabel} {pricingAvailable ? displayedBrl : 'Indisponivel'}</span>
+            {ligaPrice ? (
+              <>
+                <span>BRL mínimo: {formatBrl(ligaPrice.min)}</span>
+                <span>BRL médio: {formatBrl(ligaPrice.avg)}</span>
+                <span>BRL máximo: {formatBrl(ligaPrice.max)}</span>
+              </>
+            ) : (
+              <span>{brlLabel} {pricingAvailable ? displayedBrl : 'Indisponivel'}</span>
+            )}
             <span>{result.pricing.imageMessage}</span>
             <span>{result.pricing.pricingMessage}</span>
           </div>
