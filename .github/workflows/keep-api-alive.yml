@@ -12,4 +12,4 @@ jobs:
       - name: Check Render API
         run: |
           curl --fail --silent --show-error --max-time 30 \
-            https://collection-pokemon-tcg.onrender.com/health
+            https://collection-pokemon-tcg.onrender.com/health/live
