@@ -12,6 +12,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.get('/health/live', (req, res) => {
+  res.json({ ok: true });
+});
+
 app.get('/health', async (req, res) => {
   if (!isDatabaseConfigured()) {
     return res.status(503).json({ ok: false, database: false });
