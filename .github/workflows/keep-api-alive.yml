@@ -11,5 +11,8 @@ jobs:
     steps:
       - name: Check Render API
         run: |
-          curl --fail --silent --show-error --max-time 30 \
-            https://collection-pokemon-tcg.onrender.com/health/live
+          if ! curl --fail --silent --show-error --max-time 30 \
+            https://collection-pokemon-tcg.onrender.com/health/live; then
+            curl --fail --silent --show-error --max-time 30 \
+              https://collection-pokemon-tcg.onrender.com/health
+          fi
