@@ -92,6 +92,38 @@ function normalizeSearchText(value) {
     .toLowerCase();
 }
 
+function parseLigaCardUrl(value) {
+  let url;
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('Informe um link válido da Liga Pokémon.');
+  }
+
+  if (url.hostname !== 'www.ligapokemon.com.br' && url.hostname !== 'ligapokemon.com.br') {
+    throw new Error('O link deve ser da Liga Pokémon.');
+  }
+
+  const card = url.searchParams.get('card') || '';
+  const numberMatch = card.match(/\(([^/\s]+)\s*\/\s*([^)]+)\)/);
+  const name = card.replace(/\s*\([^/]+\s*\/\s*[^)]+\)\s*$/, '').trim();
+  const number = url.searchParams.get('num') || numberMatch?.[1] || null;
+  const printedTotal = numberMatch?.[2] || null;
+
+  if (!name || !number) {
+    throw new Error('O link da Liga não contém o nome e o número da carta.');
+  }
+
+  return {
+    url: url.toString(),
+    name,
+    number,
+    printedTotal,
+    editionCode: url.searchParams.get('ed') || null,
+  };
+}
+
 async function findLigaReferenceBySearch(name, number, printedTotal = null, preferredEdition = null) {
   const url = new URL(getUrlTemplate().replace('{card_name}', encodeURIComponent(name)));
   url.searchParams.set('view', 'cards/search');
@@ -238,10 +270,10 @@ async function getCardPrice(name, edition = null) {
   return result.prices;
 }
 
-async function getCardData(name, edition = null) {
-  let url = getUrlTemplate().replace('{card_name}', encodeURIComponent(name));
+async function getCardData(name, edition = null, lookupUrl = null) {
+  let url = lookupUrl || getUrlTemplate().replace('{card_name}', encodeURIComponent(name));
 
-  if (edition) {
+  if (edition && !lookupUrl) {
     url += `${url.includes('?') ? '&' : '?'}ed=${encodeURIComponent(edition)}`;
   }
 
@@ -276,6 +308,20 @@ async function getCardPricesForNames(names, edition = null) {
 }
 
 async function getLigaCardReference(cardId, fallbackName = null, fallbackCard = null) {
+  const directLigaCard = fallbackCard?.ligaUrl
+    ? parseLigaCardUrl(fallbackCard.ligaUrl)
+    : null;
+  if (directLigaCard) {
+    return {
+      reference: `${directLigaCard.name} (${directLigaCard.number}/${directLigaCard.printedTotal || ''})`,
+      editionCode: directLigaCard.editionCode,
+      name: directLigaCard.name,
+      number: directLigaCard.number,
+      printedTotal: directLigaCard.printedTotal,
+      url: directLigaCard.url,
+    };
+  }
+
   let card;
   const sources = [
     `https://api.pokemontcg.io/v2/cards/${encodeURIComponent(cardId)}`,
@@ -346,6 +392,7 @@ module.exports = {
   extractCardImage,
   getCardPrice,
   getCardData,
+  parseLigaCardUrl,
   getCardPricesForNames,
   getLigaCardReference,
   findLigaReferenceBySearch,

@@ -7,6 +7,7 @@ const {
   getLigaCardReference,
   findLigaReferenceBySearch,
 } = require('../ligaPokemon/ligaPokemon.service');
+const { parseLigaCardUrl } = require('../ligaPokemon/ligaPokemon.service');
 
 const TCGDEX_BASE_URL = 'https://api.tcgdex.net/v2/pt-br';
 const POKEMON_TCG_BASE_URL = 'https://api.pokemontcg.io/v2';
@@ -899,12 +900,15 @@ async function buildCardEstimateById(cardId, options = {}) {
       {
         ...options.fallbackCard,
         number: options.fallbackCard?.number || cardDetails.localId,
+        ligaUrl: options.ligaUrl,
       }
     );
     const ligaResult = await getCachedCardPrices(
       cardDetails.name,
       ligaReference.editionCode,
-      ligaReference.reference
+      ligaReference.reference,
+      cardDetails.name,
+      options.ligaUrl
     );
     const codes = Object.keys(ligaResult.prices);
     const editionCode = ligaReference.editionCode?.toUpperCase()
@@ -987,11 +991,13 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
       const reference = await getLigaCardReference(card.id, card.name, {
         name: card.name,
         number: card.localId || card.number,
+        ligaUrl: options.ligaUrl,
       });
       const ligaResult = await getCachedCardPrices(
         card.name,
         reference.editionCode,
-        reference.reference
+        reference.reference,
+        options.ligaUrl
       );
       const codes = Object.keys(ligaResult.prices);
       const editionCode = reference.editionCode?.toUpperCase()

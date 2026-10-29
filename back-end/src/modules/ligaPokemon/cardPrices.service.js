@@ -92,7 +92,7 @@ function buildResult(cardName, rows, stale) {
   };
 }
 
-async function getCachedCardPrices(name, edition = null, lookupName = name) {
+async function getCachedCardPrices(name, edition = null, lookupName = name, lookupUrl = null) {
   assertDatabaseReady();
 
   const cardName = normalizeCardName(name);
@@ -108,7 +108,7 @@ async function getCachedCardPrices(name, edition = null, lookupName = name) {
   let fetchedPrices;
 
   try {
-    fetchedPrices = await getCardData(lookupName, normalizedEdition);
+    fetchedPrices = await getCardData(lookupName, normalizedEdition, lookupUrl);
   } catch (error) {
     if (cachedRows.length > 0) {
       return buildResult(cardName, cachedRows, true);
