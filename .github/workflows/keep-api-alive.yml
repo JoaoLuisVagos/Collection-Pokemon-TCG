@@ -9,10 +9,7 @@ jobs:
   health-check:
     runs-on: ubuntu-latest
     steps:
-      - name: Check Render API
+      - name: Check Render API and database
         run: |
-          if ! curl --fail --silent --show-error --max-time 30 \
-            https://collection-pokemon-tcg.onrender.com/health/live; then
-            curl --fail --silent --show-error --max-time 30 \
-              https://collection-pokemon-tcg.onrender.com/health
-          fi
+          curl --fail --silent --show-error --max-time 60 --retry 3 --retry-delay 10 \
+            https://collection-pokemon-tcg.onrender.com/health
