@@ -2,6 +2,7 @@ const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, mil
 const MIN_REQUEST_INTERVAL_MS = 1200;
 let lastRequestAt = 0;
 let requestQueue = Promise.resolve();
+let ligaSessionCookie = '';
 
 function getUrlTemplate() {
   const template = process.env.LIGA_POKEMON_URL_TEMPLATE;
@@ -174,8 +175,22 @@ async function fetchCardPage(url) {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
         'Accept-Language': 'pt-BR,pt;q=0.9',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        Referer: 'https://www.ligapokemon.com.br/',
+        ...(ligaSessionCookie ? { Cookie: ligaSessionCookie } : {}),
       },
     });
+
+    const setCookie = response.headers?.get('set-cookie');
+    if (setCookie) {
+      const sessionCookie = setCookie
+        .split(',')
+        .map((cookie) => cookie.match(/(?:^|,\s*)(LIGASID=[^;]+)/)?.[1])
+        .find(Boolean);
+      if (sessionCookie) {
+        ligaSessionCookie = sessionCookie;
+      }
+    }
 
     if (response.status === 429) {
       if (attempt === 0) {
@@ -184,6 +199,12 @@ async function fetchCardPage(url) {
       }
 
       throw new Error('A Liga Pokémon recusou a requisição (HTTP 429) após uma nova tentativa.');
+    }
+
+    if (response.status === 403) {
+      throw new Error(
+        'A Liga Pokémon bloqueou a sessão automatizada (HTTP 403). Tente novamente após alguns minutos.'
+      );
     }
 
     if (!response.ok) {
