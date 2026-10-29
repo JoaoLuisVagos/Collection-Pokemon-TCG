@@ -1246,26 +1246,28 @@ async function updateCardPricesFromLiga() {
       let reference = card.liga_card_reference;
 
       try {
-        const resolved = await getLigaCardReference(card.tcgdex_id, card.name_card);
-        reference = resolved.reference;
-        editionCode = resolved.editionCode;
-        await connection.execute(
-          `UPDATE cards
-           SET liga_card_name = ?,
-               liga_card_number = ?,
-               liga_printed_total = ?,
-               liga_card_reference = ?,
-               edition_code = ?
-           WHERE tcgdex_id = ?`,
-          [
-            resolved.name,
-            resolved.number,
-            resolved.printedTotal,
-            resolved.reference,
-            resolved.editionCode,
-            card.tcgdex_id,
-          ]
-        );
+        if (!reference || !editionCode) {
+          const resolved = await getLigaCardReference(card.tcgdex_id, card.name_card);
+          reference = reference || resolved.reference;
+          editionCode = editionCode || resolved.editionCode;
+          await connection.execute(
+            `UPDATE cards
+             SET liga_card_name = ?,
+                 liga_card_number = ?,
+                 liga_printed_total = ?,
+                 liga_card_reference = ?,
+                 edition_code = COALESCE(edition_code, ?)
+             WHERE tcgdex_id = ?`,
+            [
+              resolved.name,
+              resolved.number,
+              resolved.printedTotal,
+              resolved.reference,
+              resolved.editionCode,
+              card.tcgdex_id,
+            ]
+          );
+        }
       } catch (error) {
         skipped.push(card.tcgdex_id);
         console.warn(`Referencia da Liga nao encontrada para ${card.name_card}: ${error.message}`);
