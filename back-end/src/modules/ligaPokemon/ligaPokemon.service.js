@@ -91,7 +91,7 @@ function normalizeSearchText(value) {
     .toLowerCase();
 }
 
-async function findLigaReferenceBySearch(name, number, printedTotal = null) {
+async function findLigaReferenceBySearch(name, number, printedTotal = null, preferredEdition = null) {
   const url = new URL(getUrlTemplate().replace('{card_name}', encodeURIComponent(name)));
   url.searchParams.set('view', 'cards/search');
   url.searchParams.set('card', name);
@@ -103,6 +103,9 @@ async function findLigaReferenceBySearch(name, number, printedTotal = null) {
   const normalizedNumber = String(number).replace(/^0+/, '');
   const normalizedTotal = printedTotal ? String(printedTotal).replace(/^0+/, '') : null;
   const normalizedName = normalizeSearchText(name);
+  const normalizedPreferredEdition = preferredEdition
+    ? String(preferredEdition).trim().toUpperCase()
+    : null;
 
   const candidates = [];
 
@@ -138,9 +141,29 @@ async function findLigaReferenceBySearch(name, number, printedTotal = null) {
     ) === index
   );
 
-  return uniqueCandidates.find((candidate) => candidate.matchesName && candidate.matchesTotal)
-    || uniqueCandidates.find((candidate) => candidate.matchesTotal)
-    || (uniqueCandidates.length === 1 ? uniqueCandidates[0] : null);
+  const matchingCandidates = uniqueCandidates.filter(
+    (candidate) => candidate.matchesName && candidate.matchesTotal
+  );
+  const preferredCandidate = matchingCandidates.find(
+    (candidate) =>
+      normalizedPreferredEdition
+      && candidate.editionCode?.toUpperCase() === normalizedPreferredEdition
+  )
+    || null;
+
+  if (preferredCandidate) {
+    return preferredCandidate;
+  }
+
+  const matchingEditionCodes = new Set(
+    matchingCandidates.map((candidate) => candidate.editionCode?.toUpperCase() || '')
+  );
+  if (matchingCandidates.length === 1 || matchingEditionCodes.size === 1) {
+    return matchingCandidates[0] || null;
+  }
+
+  const totalCandidates = uniqueCandidates.filter((candidate) => candidate.matchesTotal);
+  return totalCandidates.length === 1 ? totalCandidates[0] : null;
 }
 
 async function fetchCardPage(url) {
@@ -267,7 +290,13 @@ async function getLigaCardReference(cardId, fallbackName = null, fallbackCard = 
     throw new Error(`Dados incompletos para montar a referência da Liga para ${cardId}.`);
   }
 
-  const searched = await findLigaReferenceBySearch(name, number, printedTotal);
+  const preferredEdition = card?.set?.ptcgoCode || null;
+  const searched = await findLigaReferenceBySearch(
+    name,
+    number,
+    printedTotal,
+    preferredEdition
+  );
   if (searched) {
     return {
       ...searched,
