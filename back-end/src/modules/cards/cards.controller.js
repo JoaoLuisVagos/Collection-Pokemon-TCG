@@ -3,8 +3,10 @@ const { parseLigaCardUrl } = require('../ligaPokemon');
 
 async function searchCard(req, res) {
   try {
-    const ligaUrl = req.query.ligaUrl;
-    const query = req.query.query || req.query.name;
+    const rawLigaUrl = req.query.ligaUrl || '';
+    const rawQuery = req.query.query || req.query.name || '';
+    const ligaUrl = String(rawLigaUrl).trim();
+    const query = String(rawQuery).trim();
 
     if (!query && !ligaUrl) {
       return res.status(400).json({ error: 'Informe o nome ou numero da carta.' });

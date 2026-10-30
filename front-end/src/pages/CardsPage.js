@@ -46,9 +46,19 @@ function CardsPage() {
     const loadingToastId = pushToast('Aguarde, buscando cartas...', 'loading', 0);
 
     try {
+      const enteredQuery = query.trim();
+      const enteredLigaUrl = ligaUrl.trim();
+      const linkValue = enteredLigaUrl || (
+        /^https?:\/\/(?:www\.)?ligapokemon\.com\.br\//i.test(enteredQuery)
+          ? enteredQuery
+          : ''
+      );
       const params = new URLSearchParams();
-      if (query.trim()) params.set('query', query);
-      if (ligaUrl.trim()) params.set('ligaUrl', ligaUrl.trim());
+      if (enteredQuery && enteredQuery !== linkValue) params.set('query', enteredQuery);
+      if (linkValue) params.set('ligaUrl', linkValue);
+      if (!params.toString()) {
+        throw new Error('Informe o nome, número ou link da carta na Liga Pokémon.');
+      }
       const response = await request(`/cards/search?${params.toString()}`);
       setSuggestions(response || []);
       if ((response || []).length) {
