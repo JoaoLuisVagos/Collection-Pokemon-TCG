@@ -18,6 +18,7 @@ module.exports = {
   extractCardImage,
   getCardPrice,
   getCardData,
+  parseLigaCardUrl,
   getCardPricesForNames,
   getLigaCardReference,
   findLigaReferenceBySearch,
