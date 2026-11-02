@@ -28,7 +28,7 @@ function CollectionPage() {
       const response = await request(`/collections?page=${page}&limit=18`, { token });
       setTotalValueBrl(response.totalValueBrl || 0);
       setItems(response.data || []);
-      setPagination(response.pagination || { page, limit: 18, totalPages: 0, totalItems: 0 });
+      setPagination(response.pagination || { page, limit: 20, totalPages: 0, totalItems: 0 });
     } catch (requestError) {
       collectionRequestRef.current = null;
       setError(requestError.message);
