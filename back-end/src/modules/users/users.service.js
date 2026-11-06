@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const mysql = require('mysql2');
 const { getPool } = require('../../config/db');
 const { env, isDatabaseConfigured } = require('../../config/env');
 
@@ -47,10 +48,11 @@ async function findUserByEmail(email) {
   assertDatabaseReady();
 
   const pool = getPool();
-  const [rows] = await pool.query(
+  const sql = mysql.format(
     'SELECT * FROM users WHERE email_user = ? LIMIT 1',
     [normalizeEmail(email)]
   );
+  const [rows] = await pool.query(sql);
 
   return rows[0] || null;
 }
