@@ -39,7 +39,7 @@ async function findCachedPrices(cardName, edition) {
     ? 'SELECT edition_code, price_min, price_avg, price_max, updated_at, image_url FROM card_prices WHERE card_name = ? AND edition_code = ?'
     : 'SELECT edition_code, price_min, price_avg, price_max, updated_at, image_url FROM card_prices WHERE card_name = ?';
   const params = edition ? [cardName, edition.toUpperCase()] : [cardName];
-  const [rows] = await pool.execute(query, params);
+  const [rows] = await pool.query(query, params);
 
   return rows;
 }
@@ -48,7 +48,7 @@ async function savePrices(cardName, prices, imageUrl) {
   const pool = getPool();
 
   for (const [editionCode, price] of Object.entries(prices)) {
-    await pool.execute(
+    await pool.query(
       `INSERT INTO card_prices (
         card_name, edition_code, price_min, price_avg, price_max, image_url
       ) VALUES (?, ?, ?, ?, ?, ?)
@@ -61,7 +61,7 @@ async function savePrices(cardName, prices, imageUrl) {
       [cardName, editionCode, price.min, price.avg, price.max, imageUrl || null]
     );
 
-    await pool.execute(
+    await pool.query(
       `UPDATE card_prices AS price
        INNER JOIN cards AS card
          ON LOWER(TRIM(card.name_card)) = LOWER(TRIM(price.card_name))
