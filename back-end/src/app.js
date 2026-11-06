@@ -11,10 +11,6 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use((req, res, next) => {
-  res.setHeader('X-Backend-Revision', 'a4c30f9');
-  next();
-});
 
 app.get('/health/live', (req, res) => {
   res.json({ ok: true });
