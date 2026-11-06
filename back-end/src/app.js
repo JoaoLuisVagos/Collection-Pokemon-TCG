@@ -11,6 +11,10 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  res.setHeader('X-Backend-Revision', 'a4c30f9');
+  next();
+});
 
 app.get('/health/live', (req, res) => {
   res.json({ ok: true });
@@ -29,32 +33,6 @@ app.get('/health', async (req, res) => {
   } catch (error) {
     console.error(`Health check do banco falhou: ${error.message}`);
     return res.status(503).json({ ok: false, database: false });
-  }
-});
-
-app.get('/health/db-check', async (req, res) => {
-  try {
-    const pool = getPool();
-    const checks = [];
-
-    await pool.query('SELECT 1');
-    checks.push('select-1');
-
-    await pool.query('SELECT id FROM users LIMIT 1');
-    checks.push('users-id');
-
-    await pool.query(
-      "SELECT id, password_user FROM users WHERE email_user = 'probe.invalid@example.com' LIMIT 1"
-    );
-    checks.push('users-email');
-
-    return res.json({ ok: true, checks });
-  } catch (error) {
-    console.error(`Teste do banco falhou: ${error.message}`);
-    return res.status(503).json({
-      ok: false,
-      error: error.message,
-    });
   }
 });
 
