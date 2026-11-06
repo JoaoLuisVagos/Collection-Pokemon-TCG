@@ -47,7 +47,7 @@ async function findUserByEmail(email) {
   assertDatabaseReady();
 
   const pool = getPool();
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     'SELECT * FROM users WHERE email_user = ? LIMIT 1',
     [normalizeEmail(email)]
   );
@@ -59,7 +59,7 @@ async function findUserById(id) {
   assertDatabaseReady();
 
   const pool = getPool();
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     'SELECT * FROM users WHERE id = ? LIMIT 1',
     [Number(id)]
   );
@@ -102,7 +102,7 @@ async function createUser({ name, email, password }) {
   const passwordHash = await bcrypt.hash(passwordValue, 10);
   const pool = getPool();
 
-  const [result] = await pool.execute(
+  const [result] = await pool.query(
     'INSERT INTO users (name_user, email_user, password_user) VALUES (?, ?, ?)',
     [trimmedName, normalizedEmail, passwordHash]
   );
@@ -206,7 +206,7 @@ async function updateUser(userId, { name, email, password }) {
   values.push(Number(userId));
 
   const pool = getPool();
-  await pool.execute(
+  await pool.query(
     `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
     values
   );

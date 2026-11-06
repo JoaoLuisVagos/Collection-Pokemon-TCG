@@ -630,7 +630,7 @@ async function enrichSuggestionsWithLigaData(cards) {
 
   const pool = getPool();
   const placeholders = tcgdexIds.map(() => '?').join(', ');
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     `SELECT
       cards.tcgdex_id,
       card_prices.image_url,
@@ -842,7 +842,7 @@ async function buildCardEstimateById(cardId, options = {}) {
   if (isDatabaseConfigured()) {
     try {
       const pool = getPool();
-      const [linkedRows] = await pool.execute(
+      const [linkedRows] = await pool.query(
         `SELECT
           card_prices.image_url,
           card_prices.price_min,
@@ -1051,7 +1051,7 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
   const connection = await pool.getConnection();
 
   try {
-    const [result] = await connection.execute(
+    const [result] = await connection.query(
       `INSERT INTO cards (
         tcgdex_id,
         name_card,
@@ -1100,12 +1100,12 @@ async function saveCardToDatabase(card, pricing = {}, options = {}) {
       ]
     );
 
-    const [rows] = await connection.execute('SELECT * FROM cards WHERE tcgdex_id = ?', [
+    const [rows] = await connection.query('SELECT * FROM cards WHERE tcgdex_id = ?', [
       options.databaseId || card.id,
     ]);
 
     if (rows[0]?.id && rows[0].edition_code) {
-      await connection.execute(
+      await connection.query(
         `UPDATE card_prices
          SET card_id = ?
          WHERE LOWER(TRIM(card_name)) = LOWER(TRIM(?))
@@ -1179,7 +1179,7 @@ async function updateCardPrices() {
   const updated = [];
 
   try {
-    const [cards] = await connection.execute('SELECT * FROM cards');
+    const [cards] = await connection.query('SELECT * FROM cards');
 
     for (const card of cards) {
       try {
@@ -1235,7 +1235,7 @@ async function updateCardPricesFromLiga() {
   const skipped = [];
 
   try {
-    const [cards] = await connection.execute(
+    const [cards] = await connection.query(
       `SELECT
         tcgdex_id,
         name_card,
@@ -1256,7 +1256,7 @@ async function updateCardPricesFromLiga() {
           const resolved = await getLigaCardReference(card.tcgdex_id, card.name_card);
           reference = reference || resolved.reference;
           editionCode = editionCode || resolved.editionCode;
-          await connection.execute(
+          await connection.query(
             `UPDATE cards
              SET liga_card_name = ?,
                  liga_card_number = ?,
@@ -1300,7 +1300,7 @@ async function updateCardPricesFromLiga() {
           continue;
         }
 
-        await connection.execute(
+        await connection.query(
           `UPDATE cards
            SET amount__price_card = ?,
                price_brl_card = ?
@@ -1312,7 +1312,7 @@ async function updateCardPricesFromLiga() {
           `Atualizado pela Liga: ${card.name_card} (${resolvedCode})` +
           `${result.stale ? ' [cache antigo]' : ''}`
         );
-        await connection.execute(
+        await connection.query(
           'UPDATE cards SET edition_code = ? WHERE tcgdex_id = ?',
           [resolvedCode, card.tcgdex_id]
         );
@@ -1331,7 +1331,7 @@ async function updateCardPricesFromLiga() {
             if (refreshed) {
               reference = refreshed.reference;
               editionCode = refreshed.editionCode || editionCode;
-              await connection.execute(
+              await connection.query(
                 `UPDATE cards
                  SET liga_card_reference = ?,
                      edition_code = COALESCE(?, edition_code)
@@ -1350,7 +1350,7 @@ async function updateCardPricesFromLiga() {
               const retryPrice = retryCode ? retryResult.prices[retryCode] : null;
 
               if (retryPrice) {
-                await connection.execute(
+                await connection.query(
                   `UPDATE cards
                    SET amount__price_card = ?,
                        price_brl_card = ?

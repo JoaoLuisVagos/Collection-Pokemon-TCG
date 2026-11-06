@@ -84,7 +84,7 @@ async function addCardToCollection(userId, { cardId, amount, acquisitionDate } =
   }
 
   const pool = getPool();
-  const [cards] = await pool.execute('SELECT id FROM cards WHERE id = ? LIMIT 1', [normalizedCardId]);
+  const [cards] = await pool.query('SELECT id FROM cards WHERE id = ? LIMIT 1', [normalizedCardId]);
 
   if (!cards.length) {
     const error = new Error('Carta nao encontrada.');
@@ -92,7 +92,7 @@ async function addCardToCollection(userId, { cardId, amount, acquisitionDate } =
     throw error;
   }
 
-  const [result] = await pool.execute(
+  const [result] = await pool.query(
     `INSERT INTO collection (
       user_id,
       card_id,
@@ -105,7 +105,7 @@ async function addCardToCollection(userId, { cardId, amount, acquisitionDate } =
     [normalizedUserId, normalizedCardId, normalizedAmount, normalizedAcquisitionDate]
   );
 
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     `SELECT
       collection.id AS collection_id,
       collection.amount_card_collection,
@@ -156,12 +156,12 @@ async function listUserCollection(userId, params = {}) {
   const { page, limit, offset } = parsePagination(params);
   const pool = getPool();
 
-  const [[countRow]] = await pool.execute(
+  const [[countRow]] = await pool.query(
     'SELECT COUNT(*) AS total FROM collection WHERE user_id = ?',
     [normalizedUserId]
   );
 
-  const [rows] = await pool.execute(
+  const [rows] = await pool.query(
     `SELECT
       collection.id AS collection_id,
       collection.amount_card_collection,
@@ -225,7 +225,7 @@ async function listUserCollection(userId, params = {}) {
 
   const totalItems = Number(countRow?.total || 0);
 
-  const [[totalValueRow]] = await pool.execute(
+  const [[totalValueRow]] = await pool.query(
     `SELECT
         COALESCE(SUM(collection.amount_card_collection * cards.price_brl_card), 0) AS total_value_brl
     FROM collection
@@ -267,7 +267,7 @@ async function deleteCardFromCollection(userId, cardId) {
   }
 
   const pool = getPool();
-  const [result] = await pool.execute(
+  const [result] = await pool.query(
     'DELETE FROM collection WHERE user_id = ? AND card_id = ?',
     [normalizedUserId, normalizedCardId]
   );
