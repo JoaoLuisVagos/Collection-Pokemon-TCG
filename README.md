@@ -80,8 +80,8 @@ Collection-Pokemon-TCG
 ### Aplicação publicada
 
 - Front-end: https://collection-pokemon-tcg-kappa.vercel.app/
-- API: https://collection-pokemon-tcg.onrender.com
-- Health check: https://collection-pokemon-tcg.onrender.com/health
+- API: https://collection-pokemon-tcg.enzonic.dev
+- Health check: https://collection-pokemon-tcg.enzonic.dev/health
 
 O workflow `Keep API alive` executa uma chamada ao health check a cada 10 minutos para reduzir o tempo de inicialização da API no Render. O agendamento do GitHub Actions pode sofrer atrasos e não substitui um plano de hospedagem sem suspensão automática.
 
