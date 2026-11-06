@@ -32,6 +32,24 @@ app.get('/health', async (req, res) => {
   }
 });
 
+app.get('/health/database-check', async (req, res) => {
+  const checks = [];
+
+  try {
+    const pool = getPool();
+    await pool.query('SELECT 1');
+    checks.push('select-1');
+    await pool.query('SELECT id FROM users LIMIT 1');
+    checks.push('users-id');
+    await pool.query('SELECT id FROM users WHERE email_user = "probe.invalid@example.com" LIMIT 1');
+    checks.push('users-email');
+    return res.json({ ok: true, checks });
+  } catch (error) {
+    console.error(`Diagnostico do banco falhou: ${error.message}`);
+    return res.status(503).json({ ok: false, checks, error: error.message });
+  }
+});
+
 app.use('/cards', cardsRoutes);
 app.use('/collections', collectionsRoutes);
 app.use('/users', usersRoutes);
