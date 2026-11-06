@@ -1,20 +1,7 @@
 const mysql = require('mysql2/promise');
-const mysqlBase = require('mysql2');
 const { env, isDatabaseConfigured } = require('./env');
 
 let pool;
-
-function addProxyCompatibleQuery(connection) {
-  const query = connection.query.bind(connection);
-
-  connection.query = (sql, values) => (
-    values === undefined
-      ? query(sql)
-      : query(mysqlBase.format(sql, values))
-  );
-
-  return connection;
-}
 
 function getPool() {
   if (!isDatabaseConfigured()) {
@@ -33,18 +20,6 @@ function getPool() {
       connectionLimit: 10,
       queueLimit: 0,
     });
-
-    const query = pool.query.bind(pool);
-    pool.query = (sql, values) => (
-      values === undefined
-        ? query(sql)
-        : query(mysqlBase.format(sql, values))
-    );
-
-    const getConnection = pool.getConnection.bind(pool);
-    pool.getConnection = async () => (
-      addProxyCompatibleQuery(await getConnection())
-    );
   }
 
   return pool;
