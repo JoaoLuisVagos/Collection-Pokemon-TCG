@@ -7,8 +7,8 @@ function CardSuggestionsGrid({ suggestions, selectedCardId, onSelect }) {
 
   return (
     <div className="page-card">
-      <p className="eyebrow">Prévia das cartas</p>
-      <h3>Escolha a carta correta</h3>
+      <p className="eyebrow">Cartas encontradas</p>
+      <h3>Escolha uma carta</h3>
       <div className="collection-grid">
         {suggestions.map((card) => (
           <button

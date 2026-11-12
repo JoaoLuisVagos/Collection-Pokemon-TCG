@@ -8,15 +8,15 @@ function HomePage() {
     <div className="home-layout">
       <section className="page-card hero-card">
         <div className="hero-copy">
-          <p className="eyebrow">Arquivo de colecionador / 01</p>
+          <p className="eyebrow">Coleção de cartas</p>
           <h1>{isAuthenticated ? `Olá, ${user?.name || 'treinador'}.` : 'Sua coleção começa aqui.'}</h1>
-          <p className="lead">Encontre cartas, compare referências de mercado e mantenha cada aquisição no seu próprio ritmo.</p>
+          <p className="lead">Pesquise cartas, veja uma estimativa de preço e mantenha sua coleção organizada.</p>
           <div className="action-row">
-            <Link className="button" to="/cards">Encontrar uma carta <span>→</span></Link>
-            <Link className="text-link" to="/collection">Abrir meu acervo <span>↗</span></Link>
+            <Link className="button" to="/cards">Pesquisar cartas <span>→</span></Link>
+            <Link className="text-link" to="/collection">Ver minha coleção <span>↗</span></Link>
           </div>
         </div>
-        <div className="hero-index">TCG<br /><strong>001</strong></div>
+        <div className="hero-index">TCG<br /><strong>01</strong></div>
         <div className="hero-card-stack" aria-hidden="true">
           <div className="mini-card mini-card-back" />
           <div className="mini-card mini-card-front"><span>COLLECTION</span><b>TCG</b><i>✦</i></div>
@@ -24,15 +24,15 @@ function HomePage() {
       </section>
 
       <aside className="home-aside">
-        <div className="aside-label">Leitura rápida</div>
-        <div className="stat-block"><strong>—</strong><span>cartas catalogadas</span></div>
-        <div className="stat-block"><strong>BRL</strong><span>valor atualizado sob demanda</span></div>
-        <div className="aside-note"><span>02</span><p>Pesquise pelo nome, número ou link da Liga Pokémon.</p></div>
+        <div className="aside-label">Como funciona</div>
+        <div className="stat-block"><strong>01</strong><span>Pesquise pelo nome ou número da carta.</span></div>
+        <div className="stat-block"><strong>02</strong><span>Confira os preços mínimo, médio e máximo.</span></div>
+        <div className="aside-note"><span>03</span><p>Salve as cartas que você já tem e ajuste a quantidade quando precisar.</p></div>
       </aside>
 
       <section className="home-strip">
-        <span className="strip-number">A / 2026</span>
-        <div><strong>Um acervo mais claro começa por uma boa busca.</strong><p>Salve a carta certa hoje. Organize o restante quando quiser.</p></div>
+        <span className="strip-number">DICA</span>
+        <div><strong>Não encontrou pelo nome?</strong><p>Você também pode colar o link da carta na Liga Pokémon.</p></div>
         <Link to="/cards" aria-label="Ir para busca de cartas">↗</Link>
       </section>
     </div>

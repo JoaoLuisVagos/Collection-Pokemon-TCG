@@ -21,7 +21,7 @@ function ProfilePage() {
         password: password || undefined,
       });
       setPassword('');
-      setMessage('Perfil atualizado com sucesso.');
+      setMessage('Perfil atualizado.');
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -30,7 +30,7 @@ function ProfilePage() {
   return (
     <section className="page-card auth-card">
       <p className="eyebrow">Perfil</p>
-      <h2>Dados do usuário</h2>
+      <h2>Meus dados</h2>
       <form className="form-grid" onSubmit={handleSubmit}>
         <label>
           Nome

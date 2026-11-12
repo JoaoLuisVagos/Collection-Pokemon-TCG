@@ -10,7 +10,7 @@ async function request(path, options = {}) {
     ...rest,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(token ? { Authorization: 'Bearer ' + token } : {}),
       ...(headers || {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),

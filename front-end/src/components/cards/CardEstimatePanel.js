@@ -31,7 +31,7 @@ function CardEstimatePanel({ result, onSave, saving, authenticated }) {
       <div className="result-grid">
         <CardArt src={result.card.image} alt={result.card.name} className="card-image" />
         <div>
-          <p className="eyebrow">Resultado</p>
+          <p className="eyebrow">Carta selecionada</p>
           <h3>{result.card.name}</h3>
           <p className="muted">{result.card.set?.name || result.card.setName}</p>
           <div className="meta-grid">

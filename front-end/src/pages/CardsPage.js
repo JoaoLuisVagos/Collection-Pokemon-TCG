@@ -96,7 +96,7 @@ function CardsPage() {
       });
       const response = await request(`/cards/estimate?${params.toString()}`);
       setResult(response);
-      pushToast('Previa carregada com sucesso.', 'success');
+      pushToast('Prévia carregada.', 'success');
     } catch (requestError) {
       setError(requestError.message);
       setResult(null);
@@ -148,7 +148,7 @@ function CardsPage() {
       }
 
       setResult(response);
-      pushToast('Carta salva com sucesso.', 'success');
+      pushToast('Carta adicionada à coleção.', 'success');
     } catch (requestError) {
       setError(requestError.message);
       pushToast(requestError.message || 'Erro ao salvar carta.', 'error');

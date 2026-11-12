@@ -41,7 +41,7 @@ function AuthPage() {
   return (
     <section className="page-card auth-card">
       <p className="eyebrow">{isRegister ? 'Criar conta' : 'Entrar'}</p>
-      <h2>{isRegister ? 'Abra sua coleção' : 'Acesse sua conta'}</h2>
+      <h2>{isRegister ? 'Crie sua conta' : 'Entre na sua conta'}</h2>
 
       <form className="form-grid" onSubmit={handleSubmit}>
         {isRegister && (

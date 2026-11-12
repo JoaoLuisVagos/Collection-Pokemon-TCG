@@ -375,8 +375,6 @@ h3 { margin-bottom: 7px; font-size: 1rem; }
   .card-preview-actions .button { width: 100%; }
 }
 
-/* The interface is organized as an archive: a quiet rail, a loud index and
-   page-specific working surfaces. */
 .brand-lockup { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 10px; }
 .brand-mark { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(244, 200, 74, .35); border-radius: 50%; background: rgba(255,255,255,.04); }
 .brand-lockup .logo { width: 38px; height: 38px; margin: 0; }

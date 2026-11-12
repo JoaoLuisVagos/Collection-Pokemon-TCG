@@ -50,16 +50,16 @@ function Layout() {
           <div className="brand-mark"><img src="/logo.png" alt="" className="logo" /></div>
           <div>
             <p className="brand-name">Coleção TCG</p>
-            <p className="brand-caption">Arquivo pessoal / 2026</p>
+            <p className="brand-caption">Minha coleção</p>
           </div>
         </div>
 
-        <p className="nav-kicker">Navegar pelo acervo</p>
+        <p className="nav-kicker">Menu</p>
         <nav className="nav-list">
-          <NavLink to="/" end onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>01</span><b>Visão geral</b><i>↗</i></NavLink>
-          <NavLink to="/cards" onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>02</span><b>Encontrar cartas</b><i>↗</i></NavLink>
-          <NavLink to="/collection" onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>03</span><b>Meu acervo</b><i>↗</i></NavLink>
-          <NavLink to="/profile" onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>04</span><b>Perfil</b><i>↗</i></NavLink>
+          <NavLink to="/" end onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>01</span><b>Início</b><i>↗</i></NavLink>
+          <NavLink to="/cards" onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>02</span><b>Pesquisar cartas</b><i>↗</i></NavLink>
+          <NavLink to="/collection" onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>03</span><b>Minha coleção</b><i>↗</i></NavLink>
+          <NavLink to="/profile" onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>04</span><b>Meu perfil</b><i>↗</i></NavLink>
         </nav>
 
         <div className="sidebar-footer">
@@ -87,8 +87,8 @@ function Layout() {
 
       <main className="content">
         <div className="content-rail">
-          <span>POKÉMON TCG / <strong>ACERVO DIGITAL</strong></span>
-          <span className="rail-status"><i /> Sincronização online</span>
+          <span>POKÉMON TCG / <strong>MINHA COLEÇÃO</strong></span>
+          <span className="rail-status"><i /> Online</span>
         </div>
         <Outlet />
       </main>
