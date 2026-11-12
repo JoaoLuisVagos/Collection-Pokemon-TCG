@@ -1,6 +1,6 @@
 const API_BASE_URL = process.env.REACT_APP_API_URL
   || (process.env.NODE_ENV === 'production'
-    ? 'https://collection-pokemon-tcg.onrender.com'
+    ? 'https://collection-pokemon-tcg.enzonic.dev'
     : 'http://localhost:3001');
 
 async function request(path, options = {}) {

@@ -1,16 +1,30 @@
 const { buildCardEstimate, buildCardEstimateById, saveCardToDatabase, searchCardSuggestions } = require('./cards.service');
+const { parseLigaCardUrl } = require('../ligaPokemon');
 
 async function searchCard(req, res) {
   try {
-    const query = req.query.query || req.query.name;
+    const rawLigaUrl = req.query.ligaUrl || '';
+    const rawQuery = req.query.query || req.query.name || '';
+    const ligaUrl = String(rawLigaUrl).trim();
+    const query = String(rawQuery).trim();
 
-    if (!query) {
+    if (!query && !ligaUrl) {
       return res.status(400).json({ error: 'Informe o nome ou numero da carta.' });
     }
 
-    const result = await searchCardSuggestions(query);
+    const ligaCard = ligaUrl ? parseLigaCardUrl(ligaUrl) : null;
+    const result = await searchCardSuggestions(ligaCard?.name || query);
+    const suggestions = ligaCard
+      ? result.map((card) => ({
+          ...card,
+          ligaUrl: ligaCard.url,
+          editionCode: ligaCard.editionCode || card.editionCode,
+          ligaCardNumber: ligaCard.number,
+          ligaPrintedTotal: ligaCard.printedTotal,
+        }))
+      : result;
 
-    return res.json(result);
+    return res.json(suggestions);
   } catch (error) {
     const statusCode = error.statusCode || 500;
     return res.status(statusCode).json({ error: error.message });
@@ -19,7 +33,7 @@ async function searchCard(req, res) {
 
 async function estimateCard(req, res) {
   try {
-    const { cardId, source, name, image, setName, number, rarity } = req.query;
+    const { cardId, source, name, image, setName, number, rarity, ligaUrl, editionCode } = req.query;
 
     if (!cardId) {
       return res.status(400).json({ error: 'Informe o cardId da carta escolhida.' });
@@ -27,6 +41,8 @@ async function estimateCard(req, res) {
 
     const result = await buildCardEstimateById(cardId, {
       source,
+      editionCode,
+      ligaUrl,
       fallbackCard: { id: cardId, name, image, setName, number, rarity },
     });
 
@@ -52,6 +68,7 @@ async function searchAndSaveCard(req, res) {
       ligaCardNumber,
       ligaPrintedTotal,
       ligaCardReference,
+      ligaUrl,
     } = req.body || {};
 
     if (!cardId && !name) {
@@ -61,6 +78,8 @@ async function searchAndSaveCard(req, res) {
     const result = cardId
       ? await buildCardEstimateById(cardId, {
           source,
+          editionCode,
+          ligaUrl,
           fallbackCard: { id: cardId, name, image, setName, number, rarity },
         })
       : await buildCardEstimate(name);

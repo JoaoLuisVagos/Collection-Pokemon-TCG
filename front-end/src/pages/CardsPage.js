@@ -9,6 +9,7 @@ import ToastContainer from '../components/ToastContainer';
 function CardsPage() {
   const { token } = useAuth();
   const [query, setQuery] = useState('');
+  const [ligaUrl, setLigaUrl] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [selectedCard, setSelectedCard] = useState(null);
   const [result, setResult] = useState(null);
@@ -45,7 +46,20 @@ function CardsPage() {
     const loadingToastId = pushToast('Aguarde, buscando cartas...', 'loading', 0);
 
     try {
-      const response = await request(`/cards/search?query=${encodeURIComponent(query)}`);
+      const enteredQuery = query.trim();
+      const enteredLigaUrl = ligaUrl.trim();
+      const linkValue = enteredLigaUrl || (
+        /^https?:\/\/(?:www\.)?ligapokemon\.com\.br\//i.test(enteredQuery)
+          ? enteredQuery
+          : ''
+      );
+      const params = new URLSearchParams();
+      if (enteredQuery && enteredQuery !== linkValue) params.set('query', enteredQuery);
+      if (linkValue) params.set('ligaUrl', linkValue);
+      if (!params.toString()) {
+        throw new Error('Informe o nome, número ou link da carta na Liga Pokémon.');
+      }
+      const response = await request(`/cards/search?${params.toString()}`);
       setSuggestions(response || []);
       if ((response || []).length) {
         pushToast(`Busca concluida: ${(response || []).length} carta(s) encontrada(s).`, 'success');
@@ -77,6 +91,8 @@ function CardsPage() {
         setName: card.set?.name || '',
         number: card.localId || card.number || '',
         rarity: card.rarity || '',
+        ligaUrl: card.ligaUrl || '',
+        editionCode: card.editionCode || '',
       });
       const response = await request(`/cards/estimate?${params.toString()}`);
       setResult(response);
@@ -111,6 +127,7 @@ function CardsPage() {
           setName: selectedCard.set?.name,
           number: selectedCard.localId || selectedCard.number,
           rarity: selectedCard.rarity,
+          ligaUrl: selectedCard.ligaUrl,
           editionCode: result.pricing?.liga?.editionCode || selectedCard.editionCode,
           ligaCardName: result.pricing?.liga?.name,
           ligaCardNumber: result.pricing?.liga?.number,
@@ -147,7 +164,14 @@ function CardsPage() {
       <div className="page-card">
         <p className="eyebrow">Busca de cartas</p>
         <h2>Pesquisar, escolher e salvar</h2>
-        <CardSearchForm query={query} onQueryChange={setQuery} onSubmit={handleSearch} loading={loading} />
+        <CardSearchForm
+          query={query}
+          onQueryChange={setQuery}
+          ligaUrl={ligaUrl}
+          onLigaUrlChange={setLigaUrl}
+          onSubmit={handleSearch}
+          loading={loading}
+        />
         {error ? <div className="alert error">{error}</div> : null}
       </div>
 

@@ -2,6 +2,7 @@ const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, mil
 const MIN_REQUEST_INTERVAL_MS = 1200;
 let lastRequestAt = 0;
 let requestQueue = Promise.resolve();
+let ligaSessionCookie = '';
 
 function getUrlTemplate() {
   const template = process.env.LIGA_POKEMON_URL_TEMPLATE;
@@ -91,7 +92,39 @@ function normalizeSearchText(value) {
     .toLowerCase();
 }
 
-async function findLigaReferenceBySearch(name, number, printedTotal = null) {
+function parseLigaCardUrl(value) {
+  let url;
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('Informe um link válido da Liga Pokémon.');
+  }
+
+  if (url.hostname !== 'www.ligapokemon.com.br' && url.hostname !== 'ligapokemon.com.br') {
+    throw new Error('O link deve ser da Liga Pokémon.');
+  }
+
+  const card = url.searchParams.get('card') || '';
+  const numberMatch = card.match(/\(([^/\s]+)\s*\/\s*([^)]+)\)/);
+  const name = card.replace(/\s*\([^/]+\s*\/\s*[^)]+\)\s*$/, '').trim();
+  const number = url.searchParams.get('num') || numberMatch?.[1] || null;
+  const printedTotal = numberMatch?.[2] || null;
+
+  if (!name || !number) {
+    throw new Error('O link da Liga não contém o nome e o número da carta.');
+  }
+
+  return {
+    url: url.toString(),
+    name,
+    number,
+    printedTotal,
+    editionCode: url.searchParams.get('ed') || null,
+  };
+}
+
+async function findLigaReferenceBySearch(name, number, printedTotal = null, preferredEdition = null) {
   const url = new URL(getUrlTemplate().replace('{card_name}', encodeURIComponent(name)));
   url.searchParams.set('view', 'cards/search');
   url.searchParams.set('card', name);
@@ -103,6 +136,9 @@ async function findLigaReferenceBySearch(name, number, printedTotal = null) {
   const normalizedNumber = String(number).replace(/^0+/, '');
   const normalizedTotal = printedTotal ? String(printedTotal).replace(/^0+/, '') : null;
   const normalizedName = normalizeSearchText(name);
+  const normalizedPreferredEdition = preferredEdition
+    ? String(preferredEdition).trim().toUpperCase()
+    : null;
 
   const candidates = [];
 
@@ -138,9 +174,29 @@ async function findLigaReferenceBySearch(name, number, printedTotal = null) {
     ) === index
   );
 
-  return uniqueCandidates.find((candidate) => candidate.matchesName && candidate.matchesTotal)
-    || uniqueCandidates.find((candidate) => candidate.matchesTotal)
-    || (uniqueCandidates.length === 1 ? uniqueCandidates[0] : null);
+  const matchingCandidates = uniqueCandidates.filter(
+    (candidate) => candidate.matchesName && candidate.matchesTotal
+  );
+  const preferredCandidate = matchingCandidates.find(
+    (candidate) =>
+      normalizedPreferredEdition
+      && candidate.editionCode?.toUpperCase() === normalizedPreferredEdition
+  )
+    || null;
+
+  if (preferredCandidate) {
+    return preferredCandidate;
+  }
+
+  const matchingEditionCodes = new Set(
+    matchingCandidates.map((candidate) => candidate.editionCode?.toUpperCase() || '')
+  );
+  if (matchingCandidates.length === 1 || matchingEditionCodes.size === 1) {
+    return matchingCandidates[0] || null;
+  }
+
+  const totalCandidates = uniqueCandidates.filter((candidate) => candidate.matchesTotal);
+  return totalCandidates.length === 1 ? totalCandidates[0] : null;
 }
 
 async function fetchCardPage(url) {
@@ -151,8 +207,22 @@ async function fetchCardPage(url) {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
         'Accept-Language': 'pt-BR,pt;q=0.9',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        Referer: 'https://www.ligapokemon.com.br/',
+        ...(ligaSessionCookie ? { Cookie: ligaSessionCookie } : {}),
       },
     });
+
+    const setCookie = response.headers?.get('set-cookie');
+    if (setCookie) {
+      const sessionCookie = setCookie
+        .split(',')
+        .map((cookie) => cookie.match(/(?:^|,\s*)(LIGASID=[^;]+)/)?.[1])
+        .find(Boolean);
+      if (sessionCookie) {
+        ligaSessionCookie = sessionCookie;
+      }
+    }
 
     if (response.status === 429) {
       if (attempt === 0) {
@@ -161,6 +231,12 @@ async function fetchCardPage(url) {
       }
 
       throw new Error('A Liga Pokémon recusou a requisição (HTTP 429) após uma nova tentativa.');
+    }
+
+    if (response.status === 403) {
+      throw new Error(
+        'A Liga Pokémon bloqueou a sessão automatizada (HTTP 403). Tente novamente após alguns minutos.'
+      );
     }
 
     if (!response.ok) {
@@ -194,10 +270,10 @@ async function getCardPrice(name, edition = null) {
   return result.prices;
 }
 
-async function getCardData(name, edition = null) {
-  let url = getUrlTemplate().replace('{card_name}', encodeURIComponent(name));
+async function getCardData(name, edition = null, lookupUrl = null) {
+  let url = lookupUrl || getUrlTemplate().replace('{card_name}', encodeURIComponent(name));
 
-  if (edition) {
+  if (edition && !lookupUrl) {
     url += `${url.includes('?') ? '&' : '?'}ed=${encodeURIComponent(edition)}`;
   }
 
@@ -232,6 +308,20 @@ async function getCardPricesForNames(names, edition = null) {
 }
 
 async function getLigaCardReference(cardId, fallbackName = null, fallbackCard = null) {
+  const directLigaCard = fallbackCard?.ligaUrl
+    ? parseLigaCardUrl(fallbackCard.ligaUrl)
+    : null;
+  if (directLigaCard) {
+    return {
+      reference: `${directLigaCard.name} (${directLigaCard.number}/${directLigaCard.printedTotal || ''})`,
+      editionCode: directLigaCard.editionCode,
+      name: directLigaCard.name,
+      number: directLigaCard.number,
+      printedTotal: directLigaCard.printedTotal,
+      url: directLigaCard.url,
+    };
+  }
+
   let card;
   const sources = [
     `https://api.pokemontcg.io/v2/cards/${encodeURIComponent(cardId)}`,
@@ -267,7 +357,13 @@ async function getLigaCardReference(cardId, fallbackName = null, fallbackCard = 
     throw new Error(`Dados incompletos para montar a referência da Liga para ${cardId}.`);
   }
 
-  const searched = await findLigaReferenceBySearch(name, number, printedTotal);
+  const preferredEdition = card?.set?.ptcgoCode || null;
+  const searched = await findLigaReferenceBySearch(
+    name,
+    number,
+    printedTotal,
+    preferredEdition
+  );
   if (searched) {
     return {
       ...searched,
@@ -296,6 +392,7 @@ module.exports = {
   extractCardImage,
   getCardPrice,
   getCardData,
+  parseLigaCardUrl,
   getCardPricesForNames,
   getLigaCardReference,
   findLigaReferenceBySearch,

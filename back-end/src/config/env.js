@@ -1,7 +1,11 @@
 require('dotenv').config();
 
+const configuredPort = Number(process.env.PORT);
+
 const env = {
-  port: Number(process.env.PORT || 3001),
+  port: Number.isInteger(configuredPort) && configuredPort > 0
+    ? configuredPort
+    : 3001,
   languageDiscountPercent: Number(process.env.LANGUAGE_DISCOUNT_PERCENT || 18),
   auth: {
     jwtSecret: process.env.JWT_SECRET || 'collection-pokemon-tcg-dev-secret',

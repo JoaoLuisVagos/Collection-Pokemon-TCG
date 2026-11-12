@@ -33,7 +33,6 @@ function Layout() {
 
   return (
     <div className={`shell ${isOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-
       <button
         className="toggle-btn"
         onClick={toggleMenu}
@@ -47,25 +46,31 @@ function Layout() {
       <button className="sidebar-backdrop" type="button" onClick={closeMenu} aria-label="Fechar menu" />
 
       <aside id="main-navigation" className={`sidebar ${isOpen ? 'open' : 'closed'}`}>
-        <div>
-          <img src="/logo.png" alt="Logo" className="logo" />
-          <p className="brand-name">Coleção TCG</p>
-          <p className="brand-caption">Seu acervo, seu ritmo.</p>
+        <div className="brand-lockup">
+          <div className="brand-mark"><img src="/logo.png" alt="" className="logo" /></div>
+          <div>
+            <p className="brand-name">Coleção TCG</p>
+            <p className="brand-caption">Arquivo pessoal / 2026</p>
+          </div>
         </div>
 
+        <p className="nav-kicker">Navegar pelo acervo</p>
         <nav className="nav-list">
-          <NavLink to="/" end onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>01</span>Início</NavLink>
-          <NavLink to="/cards" onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>02</span>Buscar cartas</NavLink>
-          <NavLink to="/collection" onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>03</span>Minha coleção</NavLink>
-          <NavLink to="/profile" onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>04</span>Perfil</NavLink>
+          <NavLink to="/" end onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>01</span><b>Visão geral</b><i>↗</i></NavLink>
+          <NavLink to="/cards" onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>02</span><b>Encontrar cartas</b><i>↗</i></NavLink>
+          <NavLink to="/collection" onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>03</span><b>Meu acervo</b><i>↗</i></NavLink>
+          <NavLink to="/profile" onClick={closeMenu} className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}><span>04</span><b>Perfil</b><i>↗</i></NavLink>
         </nav>
 
         <div className="sidebar-footer">
           {isAuthenticated ? (
             <>
-              <div>
-                <span className="muted">TREINADOR</span>
-                <strong>{user?.email}</strong>
+              <div className="account-chip">
+                <span className="account-avatar">{(user?.name || user?.email || 'T')[0].toUpperCase()}</span>
+                <span>
+                  <small>Conta ativa</small>
+                  <strong>{user?.name || user?.email}</strong>
+                </span>
               </div>
               <button className="button secondary" type="button" onClick={handleLogout}>
                 <FontAwesomeIcon icon={faRightFromBracket} /> Sair
@@ -81,6 +86,10 @@ function Layout() {
       </aside>
 
       <main className="content">
+        <div className="content-rail">
+          <span>POKÉMON TCG / <strong>ACERVO DIGITAL</strong></span>
+          <span className="rail-status"><i /> Sincronização online</span>
+        </div>
         <Outlet />
       </main>
     </div>
