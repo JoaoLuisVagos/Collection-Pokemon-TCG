@@ -50,10 +50,13 @@ function mapCollectionRow(row) {
       name: row.name_card,
       setName: row.set_name_card,
       rarity: row.rarity_card,
-      image: row.image_card,
+      image: row.liga_image_url,
       priceUsd: row.price_usd_card,
-      priceBrl: row.price_brl_card,
+      priceBrl: row.price_brl_card ?? row.amount__price_card,
       estimatedPriceBrl: row.amount__price_card,
+      ligaPriceMin: row.liga_price_min == null ? null : Number(row.liga_price_min),
+      ligaPriceAvg: row.liga_price_avg == null ? null : Number(row.liga_price_avg),
+      ligaPriceMax: row.liga_price_max == null ? null : Number(row.liga_price_max),
       discountPercent: row.discount_percent_card,
       createdAt: row.card_created_at,
     },
@@ -112,14 +115,20 @@ async function addCardToCollection(userId, { cardId, amount, acquisitionDate } =
       cards.name_card,
       cards.set_name_card,
       cards.rarity_card,
-      cards.image_card,
+      card_prices.image_url AS liga_image_url,
       cards.amount__price_card,
       cards.price_usd_card,
       cards.price_brl_card,
+      card_prices.price_min AS liga_price_min,
+      card_prices.price_avg AS liga_price_avg,
+      card_prices.price_max AS liga_price_max,
       cards.discount_percent_card,
       cards.created_at AS card_created_at
     FROM collection
     INNER JOIN cards ON cards.id = collection.card_id
+    LEFT JOIN card_prices
+      ON card_prices.card_id = cards.id
+     AND UPPER(card_prices.edition_code) = UPPER(cards.edition_code)
     WHERE collection.user_id = ? AND collection.card_id = ?
     LIMIT 1`,
     [normalizedUserId, normalizedCardId]
@@ -162,24 +171,53 @@ async function listUserCollection(userId, params = {}) {
       cards.name_card,
       cards.set_name_card,
       cards.rarity_card,
-      cards.image_card,
+      card_prices.image_url AS liga_image_url,
       cards.amount__price_card,
       cards.price_usd_card,
       cards.price_brl_card,
+      card_prices.price_min AS liga_price_min,
+      card_prices.price_avg AS liga_price_avg,
+      card_prices.price_max AS liga_price_max,
       cards.discount_percent_card,
       cards.created_at AS card_created_at
     FROM collection
     INNER JOIN cards ON cards.id = collection.card_id
+    LEFT JOIN card_prices
+      ON card_prices.card_id = cards.id
+     AND UPPER(card_prices.edition_code) = UPPER(cards.edition_code)
     WHERE collection.user_id = ?
-    ORDER BY CASE cards.rarity_card
-        WHEN 'Promo' THEN 1
-        WHEN 'Double Rare' THEN 2
-        WHEN 'Shiny Rare' THEN 3
-        WHEN 'Ultra Rare' THEN 4
-        WHEN 'Illustration Rare' THEN 5
-        WHEN 'Special Illustration Rare' THEN 6
-        WHEN 'Hyper Rare' THEN 7
-        ELSE 999
+    ORDER BY CASE LOWER(TRIM(cards.rarity_card))
+        WHEN 'hyper rare' THEN 100
+        WHEN 'three star' THEN 95
+        WHEN 'two star' THEN 90
+        WHEN 'one star' THEN 85
+        WHEN 'special illustration rare' THEN 80
+        WHEN 'illustration rare' THEN 75
+        WHEN 'shiny ultra rare' THEN 70
+        WHEN 'ultra rare' THEN 65
+        WHEN 'pikachu rare' THEN 62
+        WHEN 'four diamond' THEN 60
+        WHEN 'three diamond' THEN 55
+        WHEN 'two diamond' THEN 50
+        WHEN 'one diamond' THEN 45
+        WHEN 'ace spec rare' THEN 40
+        WHEN 'triple rare' THEN 35
+        WHEN 'double rare' THEN 30
+        WHEN 'shiny rare' THEN 25
+        WHEN 'radiant rare' THEN 24
+        WHEN 'amazing rare' THEN 23
+        WHEN 'rare secret' THEN 22
+        WHEN 'rare rainbow' THEN 21
+        WHEN 'rare holo vmax' THEN 20
+        WHEN 'rare holo v' THEN 19
+        WHEN 'rare holo gx' THEN 18
+        WHEN 'rare holo ex' THEN 17
+        WHEN 'rare holo' THEN 16
+        WHEN 'rare' THEN 15
+        WHEN 'promo' THEN 10
+        WHEN 'uncommon' THEN 5
+        WHEN 'common' THEN 1
+        ELSE 0
     END DESC, cards.price_brl_card DESC, cards.name_card ASC
     LIMIT ${Number(limit)} OFFSET ${Number(offset)}`,
     [normalizedUserId]

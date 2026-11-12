@@ -15,6 +15,7 @@ function getPool() {
       user: env.mysql.user,
       password: env.mysql.password,
       database: env.mysql.database,
+      ...(env.mysql.ssl ? { ssl: { rejectUnauthorized: false } } : {}),
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,

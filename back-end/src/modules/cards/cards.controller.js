@@ -19,13 +19,16 @@ async function searchCard(req, res) {
 
 async function estimateCard(req, res) {
   try {
-    const { cardId, source } = req.query;
+    const { cardId, source, name, image, setName, number, rarity } = req.query;
 
     if (!cardId) {
       return res.status(400).json({ error: 'Informe o cardId da carta escolhida.' });
     }
 
-    const result = await buildCardEstimateById(cardId, { source });
+    const result = await buildCardEstimateById(cardId, {
+      source,
+      fallbackCard: { id: cardId, name, image, setName, number, rarity },
+    });
 
     return res.json(result);
   } catch (error) {
@@ -36,16 +39,39 @@ async function estimateCard(req, res) {
 
 async function searchAndSaveCard(req, res) {
   try {
-    const { cardId, name, source } = req.body || {};
+    const {
+      cardId,
+      name,
+      source,
+      image,
+      setName,
+      number,
+      rarity,
+      editionCode,
+      ligaCardName,
+      ligaCardNumber,
+      ligaPrintedTotal,
+      ligaCardReference,
+    } = req.body || {};
 
     if (!cardId && !name) {
       return res.status(400).json({ error: 'Informe o nome ou o cardId da carta.' });
     }
 
     const result = cardId
-      ? await buildCardEstimateById(cardId, { source })
+      ? await buildCardEstimateById(cardId, {
+          source,
+          fallbackCard: { id: cardId, name, image, setName, number, rarity },
+        })
       : await buildCardEstimate(name);
-    const saved = await saveCardToDatabase(result.card, result.pricing);
+    const saved = await saveCardToDatabase(result.card, result.pricing, {
+      rarity,
+      editionCode,
+      ligaCardName,
+      ligaCardNumber,
+      ligaPrintedTotal,
+      ligaCardReference,
+    });
 
     return res.status(201).json({
       ...result,

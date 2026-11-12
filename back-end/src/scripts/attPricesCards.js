@@ -4,8 +4,8 @@ async function executar() {
 
     console.log('Iniciando script...');
 
-    const { updateCardPrices } = require('../modules/cards/cards.service');
-    await updateCardPrices();
+    const { updateCardPricesFromLiga } = require('../modules/cards/cards.service');
+    await updateCardPricesFromLiga();
 
     console.log('Script finalizado com sucesso!');
     process.exit(0);
