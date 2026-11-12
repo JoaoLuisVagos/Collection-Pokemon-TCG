@@ -18,17 +18,18 @@ Sistema web para gerenciamento de coleção de cartas do Pokémon Trading Card G
 
 ## 🖼️ Demonstração
 
-### Tela inicial
+### Tela Login
+![tela_login.png](docs/tela_login.png)
 
-![tela_inicial.png](docs/tela_inicial.png)
+### Tela inicial
+![Tela Inicial.png](docs/Tela%20Inicial.png)
 
 ### Coleção de cartas
-
-![Tela da coleção de cartas](docs/colecao.png)
+![Coleção.gif](docs/Cole%C3%A7%C3%A3o.gif)
 
 ### Pesquisa e adição de cartas
 
-![Pesquisa e adição de uma carta](docs/Pesquisa_e_adicao_da_carta.gif)
+![Tela_busca.gif](docs/Tela_busca.gif)
 
 ---
 
