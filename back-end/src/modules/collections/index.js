@@ -1,7 +1,13 @@
-const { addToCollection, getCollection, deleteCardCollection } = require('./collections.controller');
+const {
+  addToCollection,
+  getCollection,
+  deleteCardCollection,
+  removeOneCardCollection,
+} = require('./collections.controller');
 
 module.exports = {
   addToCollection,
   getCollection,
   deleteCardCollection,
+  removeOneCardCollection,
 };

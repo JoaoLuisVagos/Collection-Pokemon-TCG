@@ -5,6 +5,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash } from '@fortawesome/free-solid-svg-icons';
 import CardArt from '../components/cards/CardArt';
 
+function formatBrl(value) {
+  return Number.isFinite(Number(value))
+    ? `R$ ${Number(value).toFixed(2).replace('.', ',')}`
+    : 'N/A';
+}
+
 function CollectionPage() {
   const { token } = useAuth();
   const [items, setItems] = useState([]);
@@ -12,6 +18,8 @@ function CollectionPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [totalValueBrl, setTotalValueBrl] = useState(0);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [removingOne, setRemovingOne] = useState(false);
   const collectionRequestRef = useRef(null);
 
   const loadCollection = useCallback(async (page = 1) => {
@@ -52,9 +60,47 @@ function CollectionPage() {
     }
   }, [token, loadCollection, pagination.page]);
 
+  const handleRemoveOne = useCallback(async () => {
+    if (!selectedItem || removingOne) return;
+
+    setRemovingOne(true);
+    setError('');
+
+    try {
+      const response = await request(`/collections/${selectedItem.card.id}/decrement`, {
+        method: 'PATCH',
+        token,
+      });
+      collectionRequestRef.current = null;
+      if (response.remainingAmount === 0) {
+        setSelectedItem(null);
+      } else {
+        setSelectedItem((currentItem) => (
+          currentItem ? { ...currentItem, amount: response.remainingAmount } : currentItem
+        ));
+      }
+      await loadCollection(pagination.page);
+    } catch (removeError) {
+      setError(removeError.message);
+    } finally {
+      setRemovingOne(false);
+    }
+  }, [loadCollection, pagination.page, removingOne, selectedItem, token]);
+
   useEffect(() => {
     loadCollection(1);
   }, [loadCollection]);
+
+  useEffect(() => {
+    if (!selectedItem) return undefined;
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') setSelectedItem(null);
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedItem]);
 
   return (
     <section className="page-stack">
@@ -97,26 +143,20 @@ function CollectionPage() {
         <div className="collection-grid">
           {items.map((item) => (
             <article className="card-tile" key={item.id}>
-              <CardArt src={item.card.image} alt={item.card.name} className="card-image" />
-              <div>
-                <h3>{item.card.name}</h3>
-                <p>{item.card.setName}</p>
-                <p>Quantidade: {item.amount}</p>
-                {item.card.ligaPriceMin != null ? (
-                    <>
-                      <p style={{ color: 'green' }}>BRL Min: {Number(item.card.ligaPriceMin).toFixed(2)}</p>
-                    </>
-                ) : null}
-                <p style={{ color: 'yellow' }}>
-                  BRL MED: {Number.isFinite(Number(item.card.ligaPriceAvg ?? item.card.priceBrl))
-                    ? Number(item.card.ligaPriceAvg ?? item.card.priceBrl).toFixed(2)
-                    : 'N/A'}
-                </p>
-                {item.card.ligaPriceMax != null ? (
-                    <>
-                      <p style={{ color: 'red' }}>BRL Max: {Number(item.card.ligaPriceMax).toFixed(2)}</p>
-                    </>
-                ) : null}
+              <button
+                className="card-preview-trigger"
+                type="button"
+                onClick={() => setSelectedItem(item)}
+                aria-label={`Abrir preview de ${item.card.name}`}
+              >
+                <CardArt src={item.card.image} alt={item.card.name} className="card-image" />
+                <span className="card-tile-details">
+                  <strong>{item.card.name}</strong>
+                  <span>{item.card.setName}</span>
+                  <span>Quantidade: {item.amount}</span>
+                </span>
+              </button>
+              <div className="card-tile-actions">
                 <button
                   className="button secondary"
                   type="button"
@@ -127,10 +167,39 @@ function CollectionPage() {
                   }}
                 >
                   <FontAwesomeIcon icon={faTrash} />
+                  <span className="sr-only">Excluir todas as unidades</span>
                 </button>
               </div>
             </article>
           ))}
+        </div>
+      ) : null}
+
+      {selectedItem ? (
+        <div className="card-preview-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setSelectedItem(null);
+        }}>
+          <section className="card-preview-modal" role="dialog" aria-modal="true" aria-labelledby="card-preview-title">
+            <button className="card-preview-close" type="button" onClick={() => setSelectedItem(null)} aria-label="Fechar preview">×</button>
+            <CardArt src={selectedItem.card.image} alt={selectedItem.card.name} className="card-preview-image" />
+            <div className="card-preview-content">
+              <p className="eyebrow">Preview da carta</p>
+              <h2 id="card-preview-title">{selectedItem.card.name}</h2>
+              <p className="muted">{selectedItem.card.setName}</p>
+              <p className="card-preview-quantity">Você possui <strong>{selectedItem.amount}</strong> unidade(s).</p>
+              <div className="card-preview-prices" aria-label="Valores estimados da carta">
+                <span><small>Mínimo</small><strong>{formatBrl(selectedItem.card.ligaPriceMin)}</strong></span>
+                <span><small>Médio</small><strong>{formatBrl(selectedItem.card.ligaPriceAvg ?? selectedItem.card.priceBrl)}</strong></span>
+                <span><small>Máximo</small><strong>{formatBrl(selectedItem.card.ligaPriceMax)}</strong></span>
+              </div>
+              <div className="card-preview-actions">
+                <button className="button secondary" type="button" onClick={handleRemoveOne} disabled={removingOne}>
+                  {removingOne ? 'Retirando...' : '− 1 unidade'}
+                </button>
+                <button className="button" type="button" onClick={() => setSelectedItem(null)}>Fechar</button>
+              </div>
+            </div>
+          </section>
         </div>
       ) : null}
     </section>

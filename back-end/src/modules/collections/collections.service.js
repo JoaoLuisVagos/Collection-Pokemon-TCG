@@ -277,8 +277,54 @@ async function deleteCardFromCollection(userId, cardId) {
   };
 }
 
+async function removeOneCardFromCollection(userId, cardId) {
+  assertDatabaseReady();
+
+  const normalizedUserId = Number(userId);
+  const normalizedCardId = Number(cardId);
+
+  if (!Number.isInteger(normalizedUserId) || normalizedUserId <= 0) {
+    const error = new Error('Usuario invalido.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!Number.isInteger(normalizedCardId) || normalizedCardId <= 0) {
+    const error = new Error('Informe o cardId da carta.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const pool = getPool();
+  const [updateResult] = await pool.query(
+    `UPDATE collection
+     SET amount_card_collection = amount_card_collection - 1
+     WHERE user_id = ? AND card_id = ? AND amount_card_collection > 1`,
+    [normalizedUserId, normalizedCardId]
+  );
+
+  let deleteResult = { affectedRows: 0 };
+  if (updateResult.affectedRows === 0) {
+    [deleteResult] = await pool.query(
+      'DELETE FROM collection WHERE user_id = ? AND card_id = ? AND amount_card_collection = 1',
+      [normalizedUserId, normalizedCardId]
+    );
+  }
+
+  const [rows] = await pool.query(
+    'SELECT amount_card_collection FROM collection WHERE user_id = ? AND card_id = ? LIMIT 1',
+    [normalizedUserId, normalizedCardId]
+  );
+
+  return {
+    removed: updateResult.affectedRows > 0 || deleteResult.affectedRows > 0,
+    remainingAmount: rows[0]?.amount_card_collection || 0,
+  };
+}
+
 module.exports = {
   addCardToCollection,
   listUserCollection,
   deleteCardFromCollection,
+  removeOneCardFromCollection,
 };
