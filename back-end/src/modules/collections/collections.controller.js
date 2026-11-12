@@ -1,6 +1,7 @@
 const {
   addCardToCollection,
   listUserCollection,
+  deleteCardFromCollection
 } = require('./collections.service');
 
 async function addToCollection(req, res) {
@@ -25,7 +26,19 @@ async function getCollection(req, res) {
   }
 }
 
+async function deleteCardCollection(req, res) {
+  try {
+    const result = await deleteCardFromCollection(req.authenticatedUser.id, req.params.cardId);
+
+    return res.json(result);
+  } catch (error) {
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({ error: error.message });
+  }
+}
+
 module.exports = {
   addToCollection,
   getCollection,
+  deleteCardCollection,
 };

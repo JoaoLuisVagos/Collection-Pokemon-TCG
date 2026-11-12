@@ -17,8 +17,8 @@ const env = {
 };
 
 function isDatabaseConfigured() {
-  const { host, user, password, database } = env.mysql;
-  return Boolean(host && user && password && database);
+  const { host, user, database } = env.mysql;
+  return Boolean(host && user && database);
 }
 
 module.exports = {
